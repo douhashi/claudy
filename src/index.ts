@@ -7,6 +7,7 @@ import { logger } from './utils/logger';
 import { initializeClaudyDir } from './utils/config';
 import { ClaudyError } from './types';
 import { registerSaveCommand } from './commands/save';
+import { registerLoadCommand } from './commands/load';
 
 async function getPackageVersion(): Promise<string> {
   try {
@@ -47,6 +48,7 @@ async function main(): Promise<void> {
       });
 
     registerSaveCommand(program);
+    registerLoadCommand(program);
 
     program
       .command('help')
