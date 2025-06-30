@@ -13,5 +13,12 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   transform: {
     '^.+\\.ts$': 'ts-jest'
+  },
+  transformIgnorePatterns: [
+    'node_modules/(?!(chalk|#ansi-styles|#supports-color)/)'
+  ],
+  extensionsToTreatAsEsm: ['.ts'],
+  moduleNameMapper: {
+    '^chalk$': '<rootDir>/tests/__mocks__/chalk.ts'
   }
 };
