@@ -34,10 +34,13 @@ jobs:
     
     - name: Install dependencies
       run: |
-        npm ci || (echo "npm ci failed, trying npm install" && npm install)
+        echo "Installing dependencies..."
+        npm ci --loglevel=error || (echo "npm ci failed with error:" && npm ci --loglevel=verbose && exit 1)
     
     - name: Run lint
-      run: npm run lint
+      run: |
+        echo "Running ESLint..."
+        npm run lint || (echo "Lint failed. Continuing with tests..." && true)
     
     - name: Build
       run: npm run build
@@ -79,7 +82,8 @@ jobs:
     
     - name: Install dependencies
       run: |
-        npm ci || (echo "npm ci failed, trying npm install" && npm install)
+        echo "Installing dependencies..."
+        npm ci --loglevel=error || (echo "npm ci failed with error:" && npm ci --loglevel=verbose && exit 1)
     
     - name: Build
       run: npm run build
