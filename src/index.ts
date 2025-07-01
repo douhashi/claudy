@@ -8,6 +8,8 @@ import { initializeClaudyDir } from './utils/config';
 import { ClaudyError } from './types';
 import { registerSaveCommand } from './commands/save';
 import { registerLoadCommand } from './commands/load';
+import { registerListCommand } from './commands/list';
+import { registerDeleteCommand } from './commands/delete';
 
 async function getPackageVersion(): Promise<string> {
   try {
@@ -49,6 +51,8 @@ async function main(): Promise<void> {
 
     registerSaveCommand(program);
     registerLoadCommand(program);
+    registerListCommand(program);
+    registerDeleteCommand(program);
 
     program
       .command('help')
