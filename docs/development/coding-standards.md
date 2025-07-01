@@ -38,6 +38,7 @@
 
 - 変数名・関数名: キャメルケース (`getUserData`)
 - 定数: 大文字のスネークケース (`MAX_RETRY_COUNT`)
+  - **例外**: エラーコードなどの定数オブジェクトはパスカルケース (`ErrorCodes`)
 - クラス名・インターフェース名: パスカルケース (`UserConfig`)
 - 型エイリアス: パスカルケース (`ConfigOptions`)
 - enum: パスカルケース、値は大文字のスネークケース
@@ -96,6 +97,51 @@ try {
 }
 ```
 
+### 定数定義パターン
+
+```typescript
+// const assertion を使用した定数オブジェクト
+export const ErrorCodes = {
+  // カテゴリー別にプレフィックスを付けて整理
+  
+  // 入力検証エラー (VAL_xxx)
+  INVALID_SET_NAME: 'VAL_INVALID_SET_NAME',
+  INVALID_PATH: 'VAL_INVALID_PATH',
+  
+  // リソース存在エラー (RES_xxx)
+  SET_NOT_FOUND: 'RES_SET_NOT_FOUND',
+  FILE_NOT_FOUND: 'RES_FILE_NOT_FOUND',
+  
+  // 権限エラー (PERM_xxx)
+  PERMISSION_DENIED: 'PERM_DENIED',
+  
+  // システムエラー (SYS_xxx)
+  SAVE_ERROR: 'SYS_SAVE_ERROR',
+  LOAD_ERROR: 'SYS_LOAD_ERROR',
+} as const;
+
+// 型定義を自動生成
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
+
+// エラーメッセージのマッピング
+export const ErrorMessages: Record<ErrorCode, string> = {
+  [ErrorCodes.INVALID_SET_NAME]: 'セット名が無効です。英数字、ハイフン、アンダースコアのみ使用できます。',
+  [ErrorCodes.INVALID_PATH]: 'パスが無効です。',
+  [ErrorCodes.SET_NOT_FOUND]: '指定されたセットが見つかりません。',
+  [ErrorCodes.FILE_NOT_FOUND]: 'ファイルが見つかりません。',
+  [ErrorCodes.PERMISSION_DENIED]: 'アクセス権限がありません。',
+  [ErrorCodes.SAVE_ERROR]: '設定の保存中にエラーが発生しました。',
+  [ErrorCodes.LOAD_ERROR]: '設定の読み込み中にエラーが発生しました。',
+};
+```
+
+### 定数定義のベストプラクティス
+
+1. **const assertion**: オブジェクトリテラルに`as const`を付けて、値を文字列リテラル型として扱う
+2. **カテゴリー別プレフィックス**: エラーコードをカテゴリー別に整理し、プレフィックスで分類
+3. **型の自動生成**: `typeof`と`keyof`を組み合わせて、定数から型を自動生成
+4. **メッセージマッピング**: エラーコードとメッセージを分離し、保守性を向上
+
 ### 非同期処理
 
 ```typescript
@@ -123,9 +169,15 @@ const results = await Promise.allSettled([
 ### モジュールシステム
 
 ```typescript
-// ES Modules形式を使用
+// ES Modules形式を使用（.js拡張子を付ける）
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { logger } from '../utils/logger.js';  // ローカルモジュールは必ず.js拡張子
+import { ClaudyError } from '../types/errors.js';
+
+// fs-extraの特殊なインポート方法
+import fsExtra from 'fs-extra';
+const fs = fsExtra;  // 慣例的にfsとして使用
 
 // 名前付きエクスポートを優先
 export { myFunction, MyClass };
@@ -133,6 +185,13 @@ export { myFunction, MyClass };
 // デフォルトエクスポートは主要なクラスや関数のみ
 export default MainClass;
 ```
+
+### ESモジュールの注意点
+
+1. **拡張子の明示**: ローカルモジュールをインポートする際は必ず`.js`拡張子を付ける（TypeScriptファイルでも`.js`）
+2. **package.json設定**: `"type": "module"`を設定してESモジュールを有効化
+3. **fs-extraのインポート**: デフォルトインポートして`const fs = fsExtra`として使用
+4. **相対パスの使用**: ローカルモジュールは相対パス（`./`または`../`）で指定
 
 ### ファイルシステム操作
 
@@ -152,6 +211,62 @@ async function fileExists(path: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+// エラーハンドリングを含むファイル操作
+import { handleFileOperation } from '../utils/file-operations.js';
+
+// ファイル読み込みの例
+const content = await handleFileOperation(
+  async () => await fs.readFile(filePath, 'utf-8'),
+  ErrorCodes.FILE_NOT_FOUND,
+  `ファイルの読み込みに失敗しました: ${filePath}`
+);
+
+// ファイル書き込みの例
+await handleFileOperation(
+  async () => {
+    await fs.ensureDir(path.dirname(filePath));
+    await fs.writeFile(filePath, content, 'utf-8');
+  },
+  ErrorCodes.SAVE_ERROR,
+  `ファイルの書き込みに失敗しました: ${filePath}`
+);
+```
+
+### エラーハンドリングのベストプラクティス
+
+```typescript
+// システムエラーをClaudyErrorでラップ
+export function wrapError(
+  error: unknown,
+  code: ErrorCode,
+  message?: string
+): ClaudyError {
+  if (error instanceof ClaudyError) {
+    return error;
+  }
+  
+  const errorMessage = message || ErrorMessages[code];
+  const systemError = error instanceof Error ? error : new Error(String(error));
+  
+  return new ClaudyError(errorMessage, code, {
+    originalError: systemError,
+    stack: systemError.stack
+  });
+}
+
+// ファイル操作のエラーハンドリング
+export async function handleFileOperation<T>(
+  operation: () => Promise<T>,
+  errorCode: ErrorCode,
+  errorMessage?: string
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    throw wrapError(error, errorCode, errorMessage);
   }
 }
 ```
@@ -180,21 +295,61 @@ process.on('SIGINT', async () => {
 ### コマンド構造
 
 ```typescript
-// コマンドは独立したモジュールとして実装
-export interface CommandModule {
-  name: string;
-  description: string;
-  options?: CommandOption[];
-  action: (options: any) => Promise<void>;
+// コマンドオプションのインターフェース定義
+interface SaveOptions {
+  verbose?: boolean;
+  force?: boolean;
+  dry?: boolean;
+  // その他のオプション
 }
 
-// コマンドオプションの型定義
-interface CommandOption {
-  flags: string;
-  description: string;
-  defaultValue?: any;
+// コマンドの実行関数（ビジネスロジック）
+export async function executeSaveCommand(
+  name: string,
+  options: SaveOptions
+): Promise<void> {
+  // バリデーション
+  if (!isValidSetName(name)) {
+    throw new ClaudyError(
+      `無効なセット名です: ${name}`,
+      ErrorCodes.INVALID_SET_NAME
+    );
+  }
+  
+  // メイン処理
+  await saveConfiguration(name, options);
+  
+  // 成功メッセージ
+  logger.success(`設定セット '${name}' を保存しました`);
+}
+
+// Commanderへの登録関数
+export function registerSaveCommand(program: Command): void {
+  program
+    .command('save <name>')
+    .description('現在の設定をセットとして保存')
+    .option('-f, --force', '既存のセットを上書き')
+    .option('-d, --dry', 'ドライラン（実際には保存しない）')
+    .action(async (name: string, options: SaveOptions) => {
+      // グローバルオプションのマージ
+      const globalOptions = program.opts();
+      options.verbose = globalOptions.verbose || false;
+      
+      try {
+        await executeSaveCommand(name, options);
+      } catch (error) {
+        await handleError(error, ErrorCodes.SAVE_ERROR);
+      }
+    });
 }
 ```
+
+### コマンド実装のベストプラクティス
+
+1. **関数の分離**: `executeXxxCommand`（ビジネスロジック）と`registerXxxCommand`（CLIバインディング）を分離
+2. **型安全性**: コマンドオプションには必ずインターフェースを定義
+3. **エラーハンドリング**: `try-catch`でエラーをキャッチし、`handleError`で統一的に処理
+4. **グローバルオプション**: `program.opts()`からグローバルオプションを取得してマージ
 
 ### ユーザー出力
 
@@ -250,10 +405,12 @@ const answers = await inquirer.prompt<UserInput>([
 
 ## テスト
 
-### Jest を使用したユニットテスト
+### Vitest を使用したユニットテスト
 
 ```typescript
 // ファイル名は *.test.ts または *.spec.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
 describe('UserConfig', () => {
   describe('validate', () => {
     it('should accept valid config', () => {
@@ -273,19 +430,48 @@ describe('UserConfig', () => {
 
 ```typescript
 // ファイルシステムのモック
-jest.mock('fs/promises');
-
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { readFile } from 'fs/promises';
-const mockReadFile = readFile as jest.MockedFunction<typeof readFile>;
+
+// モジュール全体をモック
+vi.mock('fs/promises');
+
+// モックされた関数の型安全なアクセス
+const mockReadFile = vi.mocked(readFile);
 
 beforeEach(() => {
-  mockReadFile.mockClear();
+  // モックをクリア
+  vi.clearAllMocks();
 });
 
 it('should read config file', async () => {
   mockReadFile.mockResolvedValue('{"key": "value"}');
   const config = await loadConfig();
   expect(config).toEqual({ key: 'value' });
+});
+```
+
+### Vitestの特徴とベストプラクティス
+
+- **高速**: VitestはViteベースで動作し、Jestよりも高速
+- **ESM対応**: ES Modulesをネイティブサポート
+- **TypeScript対応**: 設定不要でTypeScriptをサポート
+- **Watch mode**: ファイル変更を検知して自動でテストを再実行
+- **グローバルAPI**: `vitest.config.ts`で`globals: true`を設定することで、`describe`、`it`などをインポートなしで使用可能
+
+```typescript
+// vitest.config.ts の例
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html']
+    }
+  }
 });
 ```
 
