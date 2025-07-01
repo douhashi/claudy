@@ -15,7 +15,9 @@ jest.mock('../../src/utils/path');
 jest.mock('inquirer', () => ({
   prompt: jest.fn(),
 }));
-jest.mock('glob');
+jest.mock('glob', () => ({
+  glob: jest.fn(),
+}));
 
 // モジュールのインポート（モック後に行う）
 import { logger } from '../../src/utils/logger';
@@ -66,9 +68,17 @@ describe('loadコマンド', () => {
     });
 
     it('展開するファイルを正しく取得する', async () => {
-      (fs.stat as any).mockResolvedValue({
-        isDirectory: () => true,
-      } as any);
+      // statの動作を詳細に設定
+      (fs.stat as any).mockImplementation((path: string) => {
+        // セットディレクトリは存在する
+        if (path.includes('.claudy/test-set')) {
+          return Promise.resolve({ isDirectory: () => true });
+        }
+        // それ以外のファイルは存在しない（ENOENTエラー）
+        const error = new Error('ENOENT') as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        return Promise.reject(error);
+      });
       (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce(['.claude/commands/test.md', '.claude/commands/deploy.md']);
       (fs.copy as any).mockResolvedValue(undefined);
       (fs.ensureDir as any).mockResolvedValue(undefined);

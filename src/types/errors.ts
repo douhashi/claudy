@@ -1,6 +1,7 @@
 import { ClaudyError } from './index';
 
 // エラーコードのカテゴリー別定義
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const ErrorCodes = {
   // 入力検証エラー (VAL_xxx)
   INVALID_SET_NAME: 'VAL_INVALID_SET_NAME',
@@ -71,6 +72,7 @@ export const ErrorCodes = {
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
 // エラーメッセージテンプレート
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const ErrorMessages: Record<ErrorCode, string> = {
   // 入力検証エラー
   [ErrorCodes.INVALID_SET_NAME]: 'セット名が無効です。英数字、ハイフン、アンダースコアのみ使用できます。',
@@ -139,6 +141,7 @@ export const ErrorMessages: Record<ErrorCode, string> = {
 };
 
 // エラー解決策の提案
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const ErrorSolutions: Partial<Record<ErrorCode, string[]>> = {
   [ErrorCodes.PERMISSION_DENIED]: [
     'ファイルまたはディレクトリの権限を確認してください',

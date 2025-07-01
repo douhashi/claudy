@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import path from 'path';
-import { stat, copy, rename, remove } from 'fs-extra';
+import { stat, copy, rename, remove, ensureDir } from 'fs-extra';
 import inquirer from 'inquirer';
 import { logger } from '../utils/logger';
 import { getClaudyDir } from '../utils/path';
@@ -212,7 +212,7 @@ async function expandFiles(files: string[], setDir: string): Promise<void> {
     try {
       // ディレクトリを作成
       await handleFileOperation(
-        () => stat(targetDir).catch(() => copy(sourcePath, targetPath, { overwrite: true, preserveTimestamps: true })),
+        () => ensureDir(targetDir),
         ErrorCodes.DIR_CREATE_ERROR,
         targetDir
       );
@@ -254,7 +254,7 @@ async function expandFiles(files: string[], setDir: string): Promise<void> {
           targetPath
         );
         logger.debug(`ロールバック: ${file}`);
-      } catch (rollbackError) {
+      } catch {
         rollbackErrors.push(file);
         logger.warn(`ロールバック失敗: ${file}`);
       }
