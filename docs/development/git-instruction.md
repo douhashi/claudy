@@ -46,25 +46,59 @@ git checkout -b test/#<issue番号>-<テスト名>
 git checkout -b chore/#<issue番号>-<作業名>
 ```
 
+## npm scriptsの使用
+
+このプロジェクトでは、以下のnpm scriptsを使用して開発ワークフローを管理します：
+
+```bash
+# コードフォーマット（Prettier）
+npm run format
+
+# Lintチェック（ESLint）
+npm run lint
+
+# テスト実行（Vitest）
+npm run test
+
+# テストをウォッチモードで実行
+npm run test:watch
+
+# テストカバレッジを計測
+npm run test:coverage
+
+# TypeScriptビルド
+npm run build
+
+# 開発モード（ファイル監視）
+npm run dev
+```
+
 ## コミットルール
 
 ### コミットは意味のある最小の単位で行う
 
 コミットタイミングの例:
 
-1. モデルの実装が完了したとき
-2. モデルのテストの実装が完了して、テストがパスしたとき
-3. コントローラの実装が完了したとき
-4. request specの実装が完了して、テストがパスしたとき
+1. 新しいコマンドの実装が完了したとき
+2. コマンドのテストが完了して、テストがパスしたとき
+3. ユーティリティ関数の実装が完了したとき
+4. 型定義ファイルの更新が完了したとき
+5. 統合テストの実装が完了して、テストがパスしたとき
 
 ### コミット前の確認事項
 
 ```bash
 # コミット前にコードスタイルを整える（自動修正）
-bin/rubocop -a
+npm run format
+
+# Lintチェック
+npm run lint
 
 # テスト実行
-bin/rspec
+npm run test
+
+# TypeScriptの型チェック
+npm run build
 
 # コミット
 git add .
@@ -99,19 +133,25 @@ git commit -m "<type>: コミットメッセージ"
 
 ```bash
 # 新機能追加
-git commit -m "feat: ユーザー認証機能を追加"
+git commit -m "feat: saveコマンドに対話モードオプションを追加"
 
 # バグ修正
-git commit -m "fix: ログイン時のエラーハンドリングを修正"
+git commit -m "fix: ファイルパスにスペースが含まれる場合のエラーを修正"
 
 # ドキュメント更新
-git commit -m "docs: API仕様書を更新"
+git commit -m "docs: READMEにインストール手順を追加"
 
 # リファクタリング
-git commit -m "refactor: 決済処理のコードを整理"
+git commit -m "refactor: エラーハンドリングを統一的なパターンに整理"
 
 # テスト追加
-git commit -m "test: Userモデルのバリデーションテストを追加"
+git commit -m "test: file-selectorユーティリティのユニットテストを追加"
+
+# 型定義の更新
+git commit -m "chore: TypeScriptの型定義を整理"
+
+# 依存関係の更新
+git commit -m "chore: 依存パッケージを最新バージョンに更新"
 ```
 
 ## プルリクエスト（PR）作成
@@ -119,7 +159,8 @@ git commit -m "test: Userモデルのバリデーションテストを追加"
 ### PR作成前のチェックリスト
 
 - [ ] ローカルの自動テスト(フルテスト)が全てパスしていること
-- [ ] `bin/rubocop` で全ファイルのLintエラーがないこと
+- [ ] `npm run lint` で全ファイルのLintエラーがないこと
+- [ ] `npm run build` でTypeScriptのコンパイルエラーがないこと
 
 ### PR作成コマンド
 
@@ -140,9 +181,10 @@ fixes #<issue番号>
 - [主な変更点2]
 
 ## テスト結果
-- [ ] ユニットテスト実行済み
-- [ ] システムテスト実行済み
-- [ ] rubocop実行済み
+- [ ] ユニットテスト実行済み (npm run test)
+- [ ] 統合テスト実行済み
+- [ ] ESLint実行済み (npm run lint)
+- [ ] TypeScriptビルド成功 (npm run build)
 
 ## スクリーンショット（UI変更がある場合）
 [該当する場合は画像を添付]
@@ -157,16 +199,28 @@ EOF
 
 以下のファイルは機密情報を含むため、絶対に操作しないでください：
 
-- `.env` ファイル
-- `config/credentials.yml.enc`
-- `config/master.key`
-- `*.pem` ファイル
+- `.env` ファイル（環境変数）
+- `.env.local`、`.env.production` などの環境固有ファイル
+- `*.pem`、`*.key` ファイル（証明書、秘密鍵）
+- `node_modules/` ディレクトリ（依存関係）
 
 ### コミット時の注意
 
-- APIキーなどの機密情報をハードコーディングしない
+- APIキー、アクセストークンなどの機密情報をハードコーディングしない
 - 機密情報が含まれていないか必ず確認してからコミットする
 - 誤って機密情報をコミットした場合は、即座に指示者に報告する
+
+### npmパッケージのセキュリティ
+
+```bash
+# 依存関係のセキュリティ監査
+npm audit
+
+# 脆弱性の自動修正
+npm audit fix
+
+# package-lock.jsonは必ずコミットする
+```
 
 ## トラブルシューティング
 
