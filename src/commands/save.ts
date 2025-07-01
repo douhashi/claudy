@@ -8,10 +8,12 @@ import { ClaudyError } from '../types';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
 import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler';
 import { getClaudyDir } from '../utils/path';
+import { performFileSelection, FileSelectionResult } from '../utils/file-selector';
 
 interface SaveOptions {
   verbose?: boolean;
   force?: boolean;
+  interactive?: boolean;
 }
 
 /**
@@ -100,6 +102,20 @@ async function existsSet(setPath: string): Promise<boolean> {
 }
 
 /**
+ * 複数のソースからファイルをコピー
+ * @param fileGroups - ファイルグループのリスト
+ * @param targetDir - コピー先のディレクトリ
+ */
+async function copyFilesFromMultipleSources(
+  fileGroups: FileSelectionResult[],
+  targetDir: string
+): Promise<void> {
+  for (const group of fileGroups) {
+    await copyFiles(group.files, group.baseDir, targetDir);
+  }
+}
+
+/**
  * ファイルをコピー
  * @param files - コピーするファイルのリスト
  * @param sourceDir - コピー元のディレクトリ
@@ -163,24 +179,42 @@ export async function executeSaveCommand(
     validateSetName(name);
     logger.debug(`セット名: ${name}`);
     
-    // 現在のディレクトリ
-    const currentDir = process.cwd();
-    logger.debug(`現在のディレクトリ: ${currentDir}`);
+    let fileGroups: FileSelectionResult[];
+    let totalFiles = 0;
     
-    // 対象ファイルを検索
-    logger.info('Claude設定ファイルを検索中...');
-    const files = await findTargetFiles(currentDir);
-    
-    if (files.length === 0) {
-      throw new ClaudyError(
-        ErrorMessages[ErrorCodes.NO_FILES_FOUND],
-        ErrorCodes.NO_FILES_FOUND,
-        { patterns: ['CLAUDE.md', '.claude/commands/**/*.md'], searchDir: currentDir }
-      );
+    if (options.interactive) {
+      // インタラクティブモード
+      fileGroups = await performFileSelection();
+      totalFiles = fileGroups.reduce((count, group) => count + group.files.length, 0);
+      
+      if (totalFiles === 0) {
+        throw new ClaudyError(
+          'ファイルが選択されませんでした',
+          ErrorCodes.NO_FILES_FOUND
+        );
+      }
+    } else {
+      // 従来のモード（現在のディレクトリのみ）
+      const currentDir = process.cwd();
+      logger.debug(`現在のディレクトリ: ${currentDir}`);
+      
+      logger.info('Claude設定ファイルを検索中...');
+      const files = await findTargetFiles(currentDir);
+      
+      if (files.length === 0) {
+        throw new ClaudyError(
+          ErrorMessages[ErrorCodes.NO_FILES_FOUND],
+          ErrorCodes.NO_FILES_FOUND,
+          { patterns: ['CLAUDE.md', '.claude/commands/**/*.md'], searchDir: currentDir }
+        );
+      }
+      
+      logger.debug(`見つかったファイル: ${files.join(', ')}`);
+      logger.info(`${files.length}個のファイルが見つかりました`);
+      
+      fileGroups = [{ files, baseDir: currentDir }];
+      totalFiles = files.length;
     }
-    
-    logger.debug(`見つかったファイル: ${files.join(', ')}`);
-    logger.info(`${files.length}個のファイルが見つかりました`);
     
     // 保存先のパス
     const claudyDir = getClaudyDir();
@@ -206,18 +240,21 @@ export async function executeSaveCommand(
     
     // ファイルをコピー
     logger.info('ファイルを保存中...');
-    await copyFiles(files, currentDir, setPath);
+    await copyFilesFromMultipleSources(fileGroups, setPath);
     
     // 成功メッセージ
-    logger.success(`✓ セット "${name}" に${files.length}個のファイルを保存しました`);
+    logger.success(`✓ セット "${name}" に${totalFiles}個のファイルを保存しました`);
     logger.info(`保存先: ${setPath}`);
     logger.info('\n次のコマンドでこのセットを利用できます:');
     logger.info(`  $ claudy load ${name}`);
     
     if (options.verbose) {
       logger.info('保存されたファイル:');
-      files.forEach(file => {
-        logger.info(`  - ${file}`);
+      fileGroups.forEach(group => {
+        const prefix = group.baseDir === process.cwd() ? './' : '~/';
+        group.files.forEach(file => {
+          logger.info(`  - ${prefix}${file}`);
+        });
       });
     }
   } catch (error) {
@@ -237,15 +274,23 @@ export function registerSaveCommand(program: Command): void {
     .command('save <name>')
     .description('現在のディレクトリのClaude設定ファイルを名前付きセットとして保存')
     .option('-f, --force', '既存のセットを確認なしで上書き')
+    .option('-i, --interactive', 'インタラクティブにファイルを選択（ユーザーレベルのファイルも含む）')
     .addHelpText('after', `
 使用例:
   $ claudy save frontend           # フロントエンドプロジェクトの設定を保存
   $ claudy save backend -f         # 既存の"backend"セットを上書き
   $ claudy save project-v2         # バージョン付きで保存
+  $ claudy save myconfig -i        # インタラクティブにファイルを選択して保存
 
 保存対象ファイル:
-  - CLAUDE.md                      # プロジェクトの指示書
-  - .claude/commands/**/*.md       # カスタムコマンド`)
+  プロジェクトレベル:
+    - CLAUDE.md                    # プロジェクトの指示書
+    - CLAUDE.local.md              # ローカル設定（存在する場合）
+    - .claude/**/*.md              # カスタムコマンド
+  
+  ユーザーレベル（-i オプション時）:
+    - ~/.claude/CLAUDE.md          # グローバル設定
+    - ~/.claude/commands/**/*.md   # グローバルコマンド`)
     .action(async (name: string, options: SaveOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;
