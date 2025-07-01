@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
+const fs = fsExtra;
 import path from 'path';
 import {
   extractFileReferences,
@@ -8,10 +9,15 @@ import {
   ReferencedFile
 } from '../../src/utils/reference-parser';
 
-vi.mock('fs-extra');
+vi.mock('fs-extra', () => ({
+  default: {
+    pathExists: vi.fn(),
+    readFile: vi.fn(),
+  },
+}));
 vi.mock('../../src/utils/logger');
 
-const mockFs = fs as any;
+const mockFs = fsExtra as any;
 
 describe('reference-parser', () => {
   beforeEach(() => {

@@ -5,7 +5,15 @@ import { ErrorCodes } from '../../src/types/errors';
 
 // モックの設定
 vi.mock('../../src/utils/logger');
-vi.mock('fs-extra');
+vi.mock('fs-extra', () => ({
+  default: {
+    access: vi.fn(),
+    ensureDir: vi.fn(),
+    copy: vi.fn(),
+    stat: vi.fn(),
+    remove: vi.fn(),
+  },
+}));
 vi.mock('../../src/utils/path');
 vi.mock('inquirer');
 vi.mock('glob');
@@ -14,14 +22,15 @@ vi.mock('../../src/utils/file-selector');
 // モジュールのインポート（モック後に行う）
 import { logger } from '../../src/utils/logger';
 import * as pathUtils from '../../src/utils/path';
-import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
+const fs = fsExtra;
 import inquirer from 'inquirer';
 import { glob } from 'glob';
 import { performFileSelection } from '../../src/utils/file-selector';
 
 const mockLogger = vi.mocked(logger);
 const mockPathUtils = vi.mocked(pathUtils);
-const mockFs = vi.mocked(fs);
+const mockFs = vi.mocked(fsExtra);
 const mockInquirer = vi.mocked(inquirer);
 const mockGlob = vi.mocked(glob);
 const mockPerformFileSelection = vi.mocked(performFileSelection);

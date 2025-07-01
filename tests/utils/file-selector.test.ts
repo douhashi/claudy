@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import os from 'os';
-import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
+const fs = fsExtra;
 import inquirer from 'inquirer';
 import { glob } from 'glob';
 import {
@@ -15,7 +16,11 @@ import {
 
 // Mocks
 vi.mock('glob');
-vi.mock('fs-extra');
+vi.mock('fs-extra', () => ({
+  default: {
+    pathExists: vi.fn(),
+  },
+}));
 vi.mock('inquirer');
 vi.mock('../../src/utils/logger');
 vi.mock('../../src/utils/reference-parser', () => ({
@@ -23,7 +28,7 @@ vi.mock('../../src/utils/reference-parser', () => ({
 }));
 
 const mockGlob = vi.mocked(glob);
-const mockFs = vi.mocked(fs) as any;
+const mockFs = vi.mocked(fsExtra) as any;
 const mockInquirer = vi.mocked(inquirer);
 
 describe('file-selector', () => {

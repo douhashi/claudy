@@ -1,12 +1,13 @@
 import { Command } from 'commander';
-import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
+const fs = fsExtra;
 import path from 'path';
 import inquirer from 'inquirer';
-import { logger } from '../utils/logger';
-import { ClaudyError } from '../types';
-import { getProjectConfigDir } from '../utils/path';
-import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
-import { handleFileOperation, handleError } from '../utils/errorHandler';
+import { logger } from '../utils/logger.js';
+import { ClaudyError } from '../types/index.js';
+import { getProjectConfigDir } from '../utils/path.js';
+import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors.js';
+import { handleFileOperation, handleError } from '../utils/errorHandler.js';
 
 interface DeleteOptions {
   verbose?: boolean;

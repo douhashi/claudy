@@ -1,4 +1,4 @@
-import { ClaudyError } from './index';
+import { ClaudyError } from './index.js';
 
 // エラーコードのカテゴリー別定義
 // eslint-disable-next-line @typescript-eslint/naming-convention

@@ -1,13 +1,14 @@
 import { Command } from 'commander';
 import path from 'path';
-import { stat, copy, rename, remove, ensureDir } from 'fs-extra';
+import fsExtra from 'fs-extra';
+const { stat, copy, rename, remove, ensureDir } = fsExtra;
 import inquirer from 'inquirer';
-import { logger } from '../utils/logger';
-import { getProjectConfigDir } from '../utils/path';
-import { ClaudyError } from '../types';
+import { logger } from '../utils/logger.js';
+import { getProjectConfigDir } from '../utils/path.js';
+import { ClaudyError } from '../types/index.js';
 import { glob } from 'glob';
-import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
-import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler';
+import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors.js';
+import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler.js';
 
 interface LoadOptions {
   verbose?: boolean;

@@ -1,6 +1,7 @@
-import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
+const fs = fsExtra;
 import path from 'path';
-import { logger } from './logger';
+import { logger } from './logger.js';
 
 /**
  * 参照ファイル情報

@@ -11,6 +11,13 @@ vi.mock('glob');
 
 // fs-extraの個別関数をモック
 vi.mock('fs-extra', () => ({
+  default: {
+    stat: vi.fn(),
+    copy: vi.fn(),
+    ensureDir: vi.fn(),
+    rename: vi.fn(),
+    remove: vi.fn(),
+  },
   stat: vi.fn(),
   copy: vi.fn(),
   ensureDir: vi.fn(),
@@ -21,7 +28,8 @@ vi.mock('fs-extra', () => ({
 // モジュールのインポート（モック後に行う）
 import { logger } from '../../src/utils/logger';
 import * as pathUtils from '../../src/utils/path';
-import { stat, copy, ensureDir, rename, remove } from 'fs-extra';
+import fsExtra from 'fs-extra';
+const { stat, copy, ensureDir, rename, remove } = fsExtra;
 import inquirer from 'inquirer';
 import { glob } from 'glob';
 

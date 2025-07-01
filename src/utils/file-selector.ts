@@ -1,12 +1,13 @@
 import path from 'path';
 import os from 'os';
 import { glob } from 'glob';
-import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
+const fs = fsExtra;
 import inquirer from 'inquirer';
-import { logger } from './logger';
-import { ClaudyError } from '../types';
-import { ErrorCodes, wrapError } from '../types/errors';
-import { collectReferences, ReferencedFile } from './reference-parser';
+import { logger } from './logger.js';
+import { ClaudyError } from '../types/index.js';
+import { ErrorCodes, wrapError } from '../types/errors.js';
+import { collectReferences, ReferencedFile } from './reference-parser.js';
 
 export interface FileSelectionResult {
   files: string[];
