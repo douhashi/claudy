@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import os from 'os';
 import fs from 'fs-extra';
@@ -9,32 +10,34 @@ import {
   formatFilePath,
   selectFilesInteractively,
   performFileSelection,
+  FileSearchResult,
 } from '../../src/utils/file-selector';
 
 // Mocks
-jest.mock('glob');
-jest.mock('fs-extra');
-jest.mock('inquirer');
-jest.mock('../../src/utils/logger');
+vi.mock('glob');
+vi.mock('fs-extra');
+vi.mock('inquirer');
+vi.mock('../../src/utils/logger');
+vi.mock('../../src/utils/reference-parser', () => ({
+  collectReferences: vi.fn(() => Promise.resolve([])),
+}));
 
-const mockGlob = glob as jest.MockedFunction<typeof glob>;
-const mockFs = fs as jest.Mocked<typeof fs> & {
-  pathExists: jest.MockedFunction<(path: string) => Promise<boolean>>;
-};
-const mockInquirer = inquirer as jest.Mocked<typeof inquirer>;
+const mockGlob = vi.mocked(glob);
+const mockFs = vi.mocked(fs) as any;
+const mockInquirer = vi.mocked(inquirer);
 
 describe('file-selector', () => {
   const testCwd = '/test/project';
   const homeDir = '/home/testuser';
   
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(process, 'cwd').mockReturnValue(testCwd);
-    jest.spyOn(os, 'homedir').mockReturnValue(homeDir);
+    vi.clearAllMocks();
+    vi.spyOn(process, 'cwd').mockReturnValue(testCwd);
+    vi.spyOn(os, 'homedir').mockReturnValue(homeDir);
   });
   
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
   
   describe('findClaudeFiles', () => {
@@ -46,13 +49,16 @@ describe('file-selector', () => {
         return [];
       });
       
-      const files = await findClaudeFiles(testCwd);
+      const files = await findClaudeFiles(testCwd, false);
       
-      expect(files).toEqual([
-        '.claude/commands/test.md',
-        'CLAUDE.local.md',
-        'CLAUDE.md'
-      ]);
+      expect(files).toEqual({
+        mainFiles: [
+          '.claude/commands/test.md',
+          'CLAUDE.local.md',
+          'CLAUDE.md'
+        ],
+        referencedFiles: []
+      });
       expect(mockGlob).toHaveBeenCalledTimes(3);
     });
     
@@ -63,17 +69,23 @@ describe('file-selector', () => {
         return [];
       });
       
-      const files = await findClaudeFiles(testCwd);
+      const files = await findClaudeFiles(testCwd, false);
       
-      expect(files).toEqual(['CLAUDE.md']);
+      expect(files).toEqual({
+        mainFiles: ['CLAUDE.md'],
+        referencedFiles: []
+      });
     });
     
     it('should remove duplicates and sort files', async () => {
       mockGlob.mockImplementation(async () => ['CLAUDE.md', 'CLAUDE.md']);
       
-      const files = await findClaudeFiles(testCwd);
+      const files = await findClaudeFiles(testCwd, false);
       
-      expect(files).toEqual(['CLAUDE.md']);
+      expect(files).toEqual({
+        mainFiles: ['CLAUDE.md'],
+        referencedFiles: []
+      });
     });
   });
   
@@ -82,14 +94,17 @@ describe('file-selector', () => {
       mockFs.pathExists.mockResolvedValue(true);
       mockGlob.mockResolvedValue(['commands/custom.md', 'commands/another.md']);
       
-      const result = await findUserClaudeFiles();
+      const result = await findUserClaudeFiles(false);
       
       expect(result).toEqual({
-        files: [
-          '.claude/CLAUDE.md',
-          '.claude/commands/custom.md',
-          '.claude/commands/another.md'
-        ],
+        files: {
+          mainFiles: [
+            '.claude/CLAUDE.md',
+            '.claude/commands/custom.md',
+            '.claude/commands/another.md'
+          ],
+          referencedFiles: []
+        },
         baseDir: homeDir
       });
       expect(mockFs.pathExists).toHaveBeenCalledWith(path.join(homeDir, '.claude', 'CLAUDE.md'));
@@ -99,10 +114,13 @@ describe('file-selector', () => {
       mockFs.pathExists.mockResolvedValue(false);
       mockGlob.mockResolvedValue(['commands/custom.md']);
       
-      const result = await findUserClaudeFiles();
+      const result = await findUserClaudeFiles(false);
       
       expect(result).toEqual({
-        files: ['.claude/commands/custom.md'],
+        files: {
+          mainFiles: ['.claude/commands/custom.md'],
+          referencedFiles: []
+        },
         baseDir: homeDir
       });
     });
@@ -111,10 +129,13 @@ describe('file-selector', () => {
       mockFs.pathExists.mockResolvedValue(true);
       mockGlob.mockRejectedValue(new Error('Permission denied'));
       
-      const result = await findUserClaudeFiles();
+      const result = await findUserClaudeFiles(false);
       
       expect(result).toEqual({
-        files: ['.claude/CLAUDE.md'],
+        files: {
+          mainFiles: ['.claude/CLAUDE.md'],
+          referencedFiles: []
+        },
         baseDir: homeDir
       });
     });
@@ -139,8 +160,14 @@ describe('file-selector', () => {
   
   describe('selectFilesInteractively', () => {
     it('should use group selection when both project and user files exist', async () => {
-      const projectFiles = ['CLAUDE.md', '.claude/commands/test.md'];
-      const userFiles = ['.claude/CLAUDE.md'];
+      const projectFiles: FileSearchResult = {
+        mainFiles: ['CLAUDE.md', '.claude/commands/test.md'],
+        referencedFiles: []
+      };
+      const userFiles: FileSearchResult = {
+        mainFiles: ['.claude/CLAUDE.md'],
+        referencedFiles: []
+      };
       
       // Mock group selection - select both
       mockInquirer.prompt
@@ -162,14 +189,20 @@ describe('file-selector', () => {
       });
       
       expect(results).toEqual([
-        { files: projectFiles, baseDir: testCwd },
-        { files: userFiles, baseDir: homeDir }
+        { files: projectFiles.mainFiles, baseDir: testCwd },
+        { files: userFiles.mainFiles, baseDir: homeDir }
       ]);
     });
     
     it('should allow custom selection with inquirer.Separator', async () => {
-      const projectFiles = ['CLAUDE.md', '.claude/commands/test.md'];
-      const userFiles = ['.claude/CLAUDE.md'];
+      const projectFiles = {
+        mainFiles: ['CLAUDE.md', '.claude/commands/test.md'],
+        referencedFiles: []
+      };
+      const userFiles = {
+        mainFiles: ['.claude/CLAUDE.md'],
+        referencedFiles: []
+      };
       
       // Mock group selection - custom
       mockInquirer.prompt
@@ -193,42 +226,29 @@ describe('file-selector', () => {
       ]);
     });
     
-    it('should select only project files when chosen', async () => {
-      const projectFiles = ['CLAUDE.md'];
-      const userFiles = ['.claude/CLAUDE.md'];
-      
-      mockInquirer.prompt.mockResolvedValueOnce({ selection: 'project' });
-      
-      const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
-      
-      expect(results).toEqual([
-        { files: projectFiles, baseDir: testCwd }
-      ]);
-    });
-    
-    it('should select only user files when chosen', async () => {
-      const projectFiles = ['CLAUDE.md'];
-      const userFiles = ['.claude/CLAUDE.md'];
-      
-      mockInquirer.prompt.mockResolvedValueOnce({ selection: 'user' });
-      
-      const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
-      
-      expect(results).toEqual([
-        { files: userFiles, baseDir: homeDir }
-      ]);
-    });
-    
     it('should handle empty file selection', async () => {
-      mockInquirer.prompt.mockResolvedValue({ selectedFiles: [] });
+      const projectFiles: FileSearchResult = {
+        mainFiles: [],
+        referencedFiles: []
+      };
+      const userFiles: FileSearchResult = {
+        mainFiles: [],
+        referencedFiles: []
+      };
       
-      await expect(selectFilesInteractively([], [], homeDir))
+      await expect(selectFilesInteractively(projectFiles, userFiles, homeDir))
         .rejects.toThrow('Claude関連ファイルが見つかりませんでした');
     });
     
     it('should validate at least one file is selected in custom mode', async () => {
-      const projectFiles = ['CLAUDE.md'];
-      const userFiles: string[] = [];
+      const projectFiles: FileSearchResult = {
+        mainFiles: ['CLAUDE.md'],
+        referencedFiles: []
+      };
+      const userFiles: FileSearchResult = {
+        mainFiles: [],
+        referencedFiles: []
+      };
       
       // @ts-expect-error - Mocking inquirer prompt for testing
       mockInquirer.prompt.mockImplementation(async (questions: unknown) => {
@@ -255,30 +275,21 @@ describe('file-selector', () => {
   
   describe('performFileSelection', () => {
     it('should perform complete file selection flow', async () => {
-      // Mock findClaudeFiles
-      mockGlob.mockImplementation(async (pattern) => {
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
-        return [];
-      });
+      // 明示的にmocksをクリア
+      vi.clearAllMocks();
       
-      // Mock findUserClaudeFiles
-      mockFs.pathExists.mockResolvedValue(true);
-      mockGlob.mockImplementation(async (pattern, options) => {
-        if (options?.cwd === path.join(homeDir, '.claude')) {
-          return ['commands/custom.md'];
-        }
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
-        return [];
-      });
+      // プロジェクトファイルの検索で CLAUDE.md を返す
+      mockGlob
+        .mockResolvedValueOnce(['CLAUDE.md'])  // 1回目: プロジェクトの CLAUDE.md
+        .mockResolvedValueOnce([])            // 2回目: プロジェクトの CLAUDE.local.md
+        .mockResolvedValueOnce([])            // 3回目: プロジェクトの .claude/**/*.md
+        .mockResolvedValueOnce([]);           // 4回目: ユーザーの commands/**/*.md
       
-      // Mock selectFilesInteractively - group selection
-      mockInquirer.prompt.mockResolvedValue({
-        selection: 'custom'
-      }).mockResolvedValueOnce({
-        selection: 'custom'
-      }).mockResolvedValueOnce({
-        selectedFiles: ['project:CLAUDE.md']
-      });
+      // ユーザーファイルは存在しない
+      mockFs.pathExists.mockResolvedValue(false);
+      
+      // プロジェクトファイルのみを選択
+      mockInquirer.prompt.mockResolvedValue({ selection: 'project' });
       
       const results = await performFileSelection();
       

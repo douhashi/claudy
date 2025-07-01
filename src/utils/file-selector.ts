@@ -6,6 +6,7 @@ import inquirer from 'inquirer';
 import { logger } from './logger';
 import { ClaudyError } from '../types';
 import { ErrorCodes, wrapError } from '../types/errors';
+import { collectReferences, ReferencedFile } from './reference-parser';
 
 export interface FileSelectionResult {
   files: string[];
@@ -13,18 +14,30 @@ export interface FileSelectionResult {
 }
 
 /**
- * Claude関連ファイルを検索
- * @param baseDir - 検索を開始するディレクトリ
- * @returns 見つかったファイルのパスの配列
+ * ファイル検索結果
  */
-export async function findClaudeFiles(baseDir: string): Promise<string[]> {
+export interface FileSearchResult {
+  mainFiles: string[];
+  referencedFiles: ReferencedFile[];
+}
+
+/**
+ * Claude関連ファイルを検索（参照ファイルを含む）
+ * @param baseDir - 検索を開始するディレクトリ
+ * @param includeReferences - 参照ファイルを含めるかどうか
+ * @returns 見つかったファイルの情報
+ */
+export async function findClaudeFiles(
+  baseDir: string,
+  includeReferences: boolean = true
+): Promise<FileSearchResult> {
   const patterns = [
     'CLAUDE.md',
     'CLAUDE.local.md',
     '.claude/**/*.md'
   ];
   
-  const files: string[] = [];
+  const mainFiles: string[] = [];
   
   for (const pattern of patterns) {
     try {
@@ -34,28 +47,67 @@ export async function findClaudeFiles(baseDir: string): Promise<string[]> {
         nodir: true,
         dot: true, // .claudeディレクトリを含む
       });
-      files.push(...matches);
+      mainFiles.push(...matches);
     } catch (error) {
       logger.debug(`パターン "${pattern}" の検索中にエラー: ${error}`);
     }
   }
   
-  return [...new Set(files)].sort(); // 重複を削除してソート
+  // 重複を削除してソート
+  const uniqueMainFiles = [...new Set(mainFiles)].sort();
+  
+  // 参照ファイルを収集
+  let referencedFiles: ReferencedFile[] = [];
+  if (includeReferences) {
+    const processedFiles = new Set<string>();
+    
+    for (const file of uniqueMainFiles) {
+      const refs = await collectReferences(file, baseDir, processedFiles);
+      
+      // 参照ファイルをマージ
+      for (const ref of refs) {
+        const existing = referencedFiles.find(rf => rf.path === ref.path);
+        if (existing) {
+          // 参照元情報をマージ
+          for (const from of ref.referredFrom) {
+            if (!existing.referredFrom.includes(from)) {
+              existing.referredFrom.push(from);
+            }
+          }
+        } else {
+          referencedFiles.push(ref);
+        }
+      }
+    }
+    
+    // メインファイルと重複する参照ファイルを除外
+    referencedFiles = referencedFiles.filter(
+      ref => !uniqueMainFiles.includes(ref.path)
+    );
+  }
+  
+  return {
+    mainFiles: uniqueMainFiles,
+    referencedFiles
+  };
 }
 
 /**
  * ユーザーレベルのClaude関連ファイルを検索
+ * @param includeReferences - 参照ファイルを含めるかどうか
  * @returns 見つかったファイルの情報
  */
-export async function findUserClaudeFiles(): Promise<{ files: string[], baseDir: string }> {
+export async function findUserClaudeFiles(
+  includeReferences: boolean = true
+): Promise<{ files: FileSearchResult, baseDir: string }> {
   const homeDir = os.homedir();
   const userClaudeDir = path.join(homeDir, '.claude');
-  const files: string[] = [];
+  const mainFiles: string[] = [];
   
   // ~/.claude/CLAUDE.md
   const userClaudeMd = path.join(userClaudeDir, 'CLAUDE.md');
   if (await fs.pathExists(userClaudeMd)) {
-    files.push('.claude/CLAUDE.md');
+    mainFiles.push('.claude/CLAUDE.md');
   }
   
   // ~/.claude/commands/**/*.md
@@ -65,12 +117,48 @@ export async function findUserClaudeFiles(): Promise<{ files: string[], baseDir:
       absolute: false,
       nodir: true,
     });
-    files.push(...commandFiles.map(f => path.join('.claude', f)));
+    mainFiles.push(...commandFiles.map(f => path.join('.claude', f)));
   } catch (error) {
     logger.debug(`ユーザーレベルのコマンドファイル検索中にエラー: ${error}`);
   }
   
-  return { files, baseDir: homeDir };
+  // 参照ファイルを収集
+  let referencedFiles: ReferencedFile[] = [];
+  if (includeReferences && mainFiles.length > 0) {
+    const processedFiles = new Set<string>();
+    
+    for (const file of mainFiles) {
+      const refs = await collectReferences(file, homeDir, processedFiles);
+      
+      // 参照ファイルをマージ
+      for (const ref of refs) {
+        const existing = referencedFiles.find(rf => rf.path === ref.path);
+        if (existing) {
+          // 参照元情報をマージ
+          for (const from of ref.referredFrom) {
+            if (!existing.referredFrom.includes(from)) {
+              existing.referredFrom.push(from);
+            }
+          }
+        } else {
+          referencedFiles.push(ref);
+        }
+      }
+    }
+    
+    // メインファイルと重複する参照ファイルを除外
+    referencedFiles = referencedFiles.filter(
+      ref => !mainFiles.includes(ref.path)
+    );
+  }
+  
+  return { 
+    files: {
+      mainFiles,
+      referencedFiles
+    }, 
+    baseDir: homeDir 
+  };
 }
 
 /**
@@ -146,19 +234,22 @@ async function selectGroup(hasProjectFiles: boolean, hasUserFiles: boolean): Pro
 
 /**
  * インタラクティブにファイルを選択
- * @param projectFiles - プロジェクトレベルのファイル
- * @param userFiles - ユーザーレベルのファイル
+ * @param projectFiles - プロジェクトレベルのファイル情報
+ * @param userFiles - ユーザーレベルのファイル情報
  * @param userBaseDir - ユーザーレベルの基準ディレクトリ
  * @returns 選択されたファイルの情報
  */
 export async function selectFilesInteractively(
-  projectFiles: string[],
-  userFiles: string[],
+  projectFiles: FileSearchResult,
+  userFiles: FileSearchResult,
   userBaseDir: string
 ): Promise<FileSelectionResult[]> {
   const results: FileSelectionResult[] = [];
   
-  if (projectFiles.length === 0 && userFiles.length === 0) {
+  const hasProjectFiles = projectFiles.mainFiles.length > 0 || projectFiles.referencedFiles.length > 0;
+  const hasUserFiles = userFiles.mainFiles.length > 0 || userFiles.referencedFiles.length > 0;
+  
+  if (!hasProjectFiles && !hasUserFiles) {
     throw new ClaudyError(
       'Claude関連ファイルが見つかりませんでした',
       ErrorCodes.NO_FILES_FOUND,
@@ -167,53 +258,61 @@ export async function selectFilesInteractively(
   }
   
   // グループ選択
-  const groupSelection = await selectGroup(projectFiles.length > 0, userFiles.length > 0);
+  const groupSelection = await selectGroup(hasProjectFiles, hasUserFiles);
   
   // グループ選択に基づいて処理
   if (groupSelection === 'both') {
     // 両方のファイルを選択
-    if (projectFiles.length > 0) {
+    if (hasProjectFiles) {
+      const allProjectFiles = [...projectFiles.mainFiles, ...projectFiles.referencedFiles.map(rf => rf.path)];
       results.push({
-        files: projectFiles,
+        files: allProjectFiles,
         baseDir: process.cwd(),
       });
     }
-    if (userFiles.length > 0) {
+    if (hasUserFiles) {
+      const allUserFiles = [...userFiles.mainFiles, ...userFiles.referencedFiles.map(rf => rf.path)];
       results.push({
-        files: userFiles,
+        files: allUserFiles,
         baseDir: userBaseDir,
       });
     }
     
-    const totalFiles = projectFiles.length + userFiles.length;
+    const totalFiles = 
+      projectFiles.mainFiles.length + projectFiles.referencedFiles.length +
+      userFiles.mainFiles.length + userFiles.referencedFiles.length;
     logger.info(`✓ ${totalFiles}個のファイルを選択しました`);
     return results;
   } else if (groupSelection === 'project') {
     // プロジェクトレベルのみ
+    const allProjectFiles = [...projectFiles.mainFiles, ...projectFiles.referencedFiles.map(rf => rf.path)];
     results.push({
-      files: projectFiles,
+      files: allProjectFiles,
       baseDir: process.cwd(),
     });
-    logger.info(`✓ ${projectFiles.length}個のプロジェクトレベルファイルを選択しました`);
+    const totalFiles = projectFiles.mainFiles.length + projectFiles.referencedFiles.length;
+    logger.info(`✓ ${totalFiles}個のプロジェクトレベルファイルを選択しました`);
     return results;
   } else if (groupSelection === 'user') {
     // ユーザーレベルのみ
+    const allUserFiles = [...userFiles.mainFiles, ...userFiles.referencedFiles.map(rf => rf.path)];
     results.push({
-      files: userFiles,
+      files: allUserFiles,
       baseDir: userBaseDir,
     });
-    logger.info(`✓ ${userFiles.length}個のユーザーレベルファイルを選択しました`);
+    const totalFiles = userFiles.mainFiles.length + userFiles.referencedFiles.length;
+    logger.info(`✓ ${totalFiles}個のユーザーレベルファイルを選択しました`);
     return results;
   }
   
   // カスタム選択の場合
   const choices: Array<FileChoice | typeof inquirer.Separator.prototype> = [];
   
-  // プロジェクトレベルのファイル
-  if (projectFiles.length > 0) {
-    choices.push(new inquirer.Separator('--- プロジェクトレベル ---'));
+  // プロジェクトレベルのメインファイル
+  if (projectFiles.mainFiles.length > 0) {
+    choices.push(new inquirer.Separator('--- プロジェクトレベル ---'))
     
-    for (const file of projectFiles) {
+    for (const file of projectFiles.mainFiles) {
       choices.push({
         name: formatFilePath(file, process.cwd(), false),
         value: `project:${file}`,
@@ -222,21 +321,71 @@ export async function selectFilesInteractively(
     }
   }
   
-  // ユーザーレベルのファイル
-  if (userFiles.length > 0) {
-    if (projectFiles.length > 0) {
+  // プロジェクトレベルの参照ファイル
+  if (projectFiles.referencedFiles.length > 0) {
+    if (projectFiles.mainFiles.length > 0) {
+      choices.push(new inquirer.Separator(' '));
+    }
+    
+    choices.push(new inquirer.Separator('--- 参照ファイル (プロジェクト) ---'));
+    
+    for (const refFile of projectFiles.referencedFiles) {
+      const referredFromText = refFile.referredFrom.map(from => 
+        formatFilePath(from, process.cwd(), false)
+      ).join(', ');
+      
+      choices.push({
+        name: `${formatFilePath(refFile.path, process.cwd(), false)} (from ${referredFromText})`,
+        value: `project:${refFile.path}`,
+        checked: true,
+      });
+    }
+  }
+  
+  // ユーザーレベルのメインファイル
+  if (userFiles.mainFiles.length > 0) {
+    if (projectFiles.mainFiles.length > 0 || projectFiles.referencedFiles.length > 0) {
       choices.push(new inquirer.Separator(' '));
     }
     
     choices.push(new inquirer.Separator('--- ユーザーレベル ---'));
     
-    for (const file of userFiles) {
+    for (const file of userFiles.mainFiles) {
       choices.push({
         name: formatFilePath(file, userBaseDir, true),
         value: `user:${file}`,
         checked: true,
       });
     }
+  }
+  
+  // ユーザーレベルの参照ファイル
+  if (userFiles.referencedFiles.length > 0) {
+    if (userFiles.mainFiles.length > 0) {
+      choices.push(new inquirer.Separator(' '));
+    }
+    
+    choices.push(new inquirer.Separator('--- 参照ファイル (ユーザー) ---'));
+    
+    for (const refFile of userFiles.referencedFiles) {
+      const referredFromText = refFile.referredFrom.map(from => 
+        formatFilePath(from, userBaseDir, true)
+      ).join(', ');
+      
+      choices.push({
+        name: `${formatFilePath(refFile.path, userBaseDir, true)} (from ${referredFromText})`,
+        value: `user:${refFile.path}`,
+        checked: true,
+      });
+    }
+  }
+  
+  if (choices.length === 0) {
+    throw new ClaudyError(
+      'Claude関連ファイルが見つかりませんでした',
+      ErrorCodes.NO_FILES_FOUND,
+      { searchDirs: [process.cwd(), userBaseDir] }
+    );
   }
   
   const { selectedFiles } = await inquirer.prompt<{ selectedFiles: string[] }>({
@@ -254,11 +403,16 @@ export async function selectFilesInteractively(
     },
   });
   
-  // 選択されたファイルを分類
+  // 選択されたファイルを分類（ヘッダーや区切り文字を除外）
   const selectedProjectFiles: string[] = [];
   const selectedUserFiles: string[] = [];
   
   for (const selected of selectedFiles) {
+    // ヘッダーや区切り文字をスキップ
+    if (selected.includes('-header') || selected.includes('separator')) {
+      continue;
+    }
+    
     if (selected.startsWith('project:')) {
       selectedProjectFiles.push(selected.substring(8));
     } else if (selected.startsWith('user:')) {
@@ -294,12 +448,12 @@ export async function performFileSelection(): Promise<FileSelectionResult[]> {
   try {
     // プロジェクトレベルのファイルを検索
     logger.info('Claude設定ファイルを検索中...');
-    const projectFiles = await findClaudeFiles(process.cwd());
-    logger.debug(`プロジェクトレベル: ${projectFiles.length}個のファイルが見つかりました`);
+    const projectFiles = await findClaudeFiles(process.cwd(), true);
+    logger.debug(`プロジェクトレベル: ${projectFiles.mainFiles.length}個のメインファイル、${projectFiles.referencedFiles.length}個の参照ファイルが見つかりました`);
     
     // ユーザーレベルのファイルを検索
-    const { files: userFiles, baseDir: userBaseDir } = await findUserClaudeFiles();
-    logger.debug(`ユーザーレベル: ${userFiles.length}個のファイルが見つかりました`);
+    const { files: userFiles, baseDir: userBaseDir } = await findUserClaudeFiles(true);
+    logger.debug(`ユーザーレベル: ${userFiles.mainFiles.length}個のメインファイル、${userFiles.referencedFiles.length}個の参照ファイルが見つかりました`);
     
     // インタラクティブに選択
     return await selectFilesInteractively(projectFiles, userFiles, userBaseDir);

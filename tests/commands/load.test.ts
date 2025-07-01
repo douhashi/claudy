@@ -1,45 +1,44 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { executeLoadCommand } from '../../src/commands/load';
 import { ClaudyError } from '../../src/types';
 import { ErrorCodes } from '../../src/types/errors';
 
 // モックの設定
-jest.mock('../../src/utils/logger');
-jest.mock('fs-extra', () => ({
-  stat: jest.fn(),
-  copy: jest.fn(),
-  ensureDir: jest.fn(),
-  rename: jest.fn(),
-  remove: jest.fn(),
-}));
-jest.mock('../../src/utils/path');
-jest.mock('inquirer', () => ({
-  prompt: jest.fn(),
-}));
-jest.mock('glob', () => ({
-  glob: jest.fn(),
+vi.mock('../../src/utils/logger');
+vi.mock('../../src/utils/path');
+vi.mock('inquirer');
+vi.mock('glob');
+
+// fs-extraの個別関数をモック
+vi.mock('fs-extra', () => ({
+  stat: vi.fn(),
+  copy: vi.fn(),
+  ensureDir: vi.fn(),
+  rename: vi.fn(),
+  remove: vi.fn(),
 }));
 
 // モジュールのインポート（モック後に行う）
 import { logger } from '../../src/utils/logger';
 import * as pathUtils from '../../src/utils/path';
-import fs from 'fs-extra';
+import { stat, copy, ensureDir, rename, remove } from 'fs-extra';
 import inquirer from 'inquirer';
 import { glob } from 'glob';
 
-const mockLogger = logger as jest.Mocked<typeof logger>;
-const mockPathUtils = pathUtils as jest.Mocked<typeof pathUtils>;
+const mockLogger = vi.mocked(logger);
+const mockPathUtils = vi.mocked(pathUtils);
 
 describe('loadコマンド', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // デフォルトのモック設定
     mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.claudy');
-    jest.spyOn(process, 'cwd').mockReturnValue('/project');
+    vi.spyOn(process, 'cwd').mockReturnValue('/project');
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('executeLoadCommand', () => {
@@ -54,9 +53,11 @@ describe('loadコマンド', () => {
     });
 
     it('セットが存在しない場合エラーをスローする', async () => {
-      const error = new Error('ENOENT') as NodeJS.ErrnoException;
-      error.code = 'ENOENT';
-      (fs.stat as any).mockRejectedValue(error);
+      vi.mocked(stat).mockImplementation((path: any) => {
+        const error = new Error('ENOENT') as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        return Promise.reject(error);
+      });
 
       await expect(executeLoadCommand('nonexistent', { verbose: false })).rejects.toThrow(
         new ClaudyError(
@@ -69,19 +70,24 @@ describe('loadコマンド', () => {
 
     it('展開するファイルを正しく取得する', async () => {
       // statの動作を詳細に設定
-      (fs.stat as any).mockImplementation((path: string) => {
+      vi.mocked(stat).mockImplementation((path: any) => {
+        const pathStr = path.toString();
         // セットディレクトリは存在する
-        if (path.includes('.claudy/test-set')) {
-          return Promise.resolve({ isDirectory: () => true });
+        if (pathStr.includes('.claudy/test-set')) {
+          return Promise.resolve({ isDirectory: () => true } as any);
         }
         // それ以外のファイルは存在しない（ENOENTエラー）
         const error = new Error('ENOENT') as NodeJS.ErrnoException;
         error.code = 'ENOENT';
         return Promise.reject(error);
       });
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce(['.claude/commands/test.md', '.claude/commands/deploy.md']);
-      (fs.copy as any).mockResolvedValue(undefined);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        if (pattern === '.claude/**/*.md') return ['.claude/commands/test.md', '.claude/commands/deploy.md'];
+        return [];
+      });
+      vi.mocked(copy).mockResolvedValue(undefined);
+      vi.mocked(ensureDir).mockResolvedValue(undefined);
 
       await executeLoadCommand('test-set', { verbose: false });
 
@@ -91,11 +97,11 @@ describe('loadコマンド', () => {
       expect(glob).toHaveBeenCalledWith('.claude/**/*.md', expect.objectContaining({
         cwd: '/home/user/.claudy/test-set'
       }));
-      expect(fs.copy).toHaveBeenCalledTimes(3);
+      expect(copy).toHaveBeenCalledTimes(3);
     });
 
     it('既存ファイルとの衝突を検出する', async () => {
-      (fs.stat as any).mockImplementation((path: any) => {
+      vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         if (pathStr === '/home/user/.claudy/test-set' || 
             pathStr === '/project/CLAUDE.md' ||
@@ -106,8 +112,11 @@ describe('loadコマンド', () => {
         error.code = 'ENOENT';
         return Promise.reject(error);
       });
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (inquirer.prompt as any).mockResolvedValue({ action: 'cancel' });
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      vi.mocked(inquirer.prompt).mockResolvedValue({ action: 'cancel' });
 
       await executeLoadCommand('test-set', { verbose: false });
 
@@ -117,7 +126,7 @@ describe('loadコマンド', () => {
     });
 
     it('forceオプションで既存ファイルを強制上書きする', async () => {
-      (fs.stat as any).mockImplementation((path: any) => {
+      vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         if (pathStr === '/home/user/.claudy/test-set' || 
             pathStr === '/project/CLAUDE.md' ||
@@ -126,19 +135,22 @@ describe('loadコマンド', () => {
         }
         return Promise.reject(new Error('Not found'));
       });
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (fs.copy as any).mockResolvedValue(undefined);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      vi.mocked(copy).mockResolvedValue(undefined);
+      vi.mocked(ensureDir).mockResolvedValue(undefined);
 
       await executeLoadCommand('test-set', { verbose: false, force: true });
 
       expect(inquirer.prompt).not.toHaveBeenCalled();
-      expect(fs.copy).toHaveBeenCalled();
+      expect(copy).toHaveBeenCalled();
       expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" の展開が完了しました');
     });
 
     it('バックアップオプションを選択した場合、.bakファイルを作成する', async () => {
-      (fs.stat as any).mockImplementation((path: any) => {
+      vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         if (pathStr === '/home/user/.claudy/test-set' || 
             pathStr === '/project/CLAUDE.md' ||
@@ -147,22 +159,25 @@ describe('loadコマンド', () => {
         }
         return Promise.reject(new Error('Not found'));
       });
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (inquirer.prompt as any).mockResolvedValue({ action: 'backup' });
-      (fs.rename as any).mockResolvedValue(undefined);
-      (fs.copy as any).mockResolvedValue(undefined);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      vi.mocked(inquirer.prompt).mockResolvedValue({ action: 'backup' });
+      vi.mocked(rename).mockResolvedValue(undefined);
+      vi.mocked(copy).mockResolvedValue(undefined);
+      vi.mocked(ensureDir).mockResolvedValue(undefined);
 
       await executeLoadCommand('test-set', { verbose: false });
 
-      expect(fs.rename).toHaveBeenCalledWith('/project/CLAUDE.md', '/project/CLAUDE.md.bak');
-      expect(fs.copy).toHaveBeenCalled();
+      expect(rename).toHaveBeenCalledWith('/project/CLAUDE.md', '/project/CLAUDE.md.bak');
+      expect(copy).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith('\nバックアップファイル:');
       expect(mockLogger.info).toHaveBeenCalledWith('  - CLAUDE.md.bak');
     });
 
     it('上書きオプションを選択した場合、バックアップなしで展開する', async () => {
-      (fs.stat as any).mockImplementation((path: any) => {
+      vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         if (pathStr === '/home/user/.claudy/test-set' || 
             pathStr === '/project/CLAUDE.md' ||
@@ -171,51 +186,75 @@ describe('loadコマンド', () => {
         }
         return Promise.reject(new Error('Not found'));
       });
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (inquirer.prompt as any).mockResolvedValue({ action: 'overwrite' });
-      (fs.copy as any).mockResolvedValue(undefined);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      vi.mocked(inquirer.prompt).mockResolvedValue({ action: 'overwrite' });
+      vi.mocked(copy).mockResolvedValue(undefined);
+      vi.mocked(ensureDir).mockResolvedValue(undefined);
 
       await executeLoadCommand('test-set', { verbose: false });
 
-      expect(fs.rename).not.toHaveBeenCalled();
-      expect(fs.copy).toHaveBeenCalled();
+      expect(rename).not.toHaveBeenCalled();
+      expect(copy).toHaveBeenCalled();
     });
 
     it('展開中にエラーが発生した場合、ロールバックを実行する', async () => {
-      (fs.stat as any).mockResolvedValue({
-        isDirectory: () => true,
-      } as any);
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce(['.claude/commands/test.md']);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
+      vi.mocked(stat).mockImplementation((path: any) => {
+        const pathStr = path.toString();
+        // セットディレクトリは存在する
+        if (pathStr.includes('.claudy/test-set')) {
+          return Promise.resolve({ isDirectory: () => true } as any);
+        }
+        // 現在のディレクトリのファイルは存在しない
+        const error = new Error('ENOENT') as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        return Promise.reject(error);
+      });
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        if (pattern === '.claude/**/*.md') return ['.claude/commands/test.md'];
+        return [];
+      });
+      vi.mocked(ensureDir).mockResolvedValue(undefined);
       
       // 最初のコピーは成功、2つ目で失敗
-      (fs.copy as any)
+      vi.mocked(copy)
         .mockResolvedValueOnce(undefined)
         .mockRejectedValueOnce(new Error('Copy error'));
       
-      (fs.remove as any).mockResolvedValue(undefined);
+      vi.mocked(remove).mockResolvedValue(undefined);
 
       await expect(executeLoadCommand('test-set', { verbose: false }))
-        .rejects.toThrow(new ClaudyError(
-          'ファイルの展開に失敗しました。',
-          ErrorCodes.EXPAND_FAILED
-        ));
+        .rejects.toThrow('ファイルの展開に失敗しました。');
 
       expect(mockLogger.error).toHaveBeenCalledWith('ファイルの展開中にエラーが発生しました');
       expect(mockLogger.info).toHaveBeenCalledWith('ロールバックを実行しています...');
-      expect(fs.remove).toHaveBeenCalled();
+      expect(remove).toHaveBeenCalled();
     });
 
     it('verboseモードで詳細ログを出力する', async () => {
       mockLogger.setVerbose.mockImplementation(() => {});
       
-      (fs.stat as any).mockResolvedValue({
-        isDirectory: () => true,
-      } as any);
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (fs.copy as any).mockResolvedValue(undefined);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
+      vi.mocked(stat).mockImplementation((path: any) => {
+        const pathStr = path.toString();
+        // セットディレクトリは存在する
+        if (pathStr.includes('.claudy/test-set')) {
+          return Promise.resolve({ isDirectory: () => true } as any);
+        }
+        // 現在のディレクトリのファイルは存在しない
+        const error = new Error('ENOENT') as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        return Promise.reject(error);
+      });
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        if (pattern === '.claude/**/*.md') return [];
+        return [];
+      });
+      vi.mocked(copy).mockResolvedValue(undefined);
+      vi.mocked(ensureDir).mockResolvedValue(undefined);
 
       await executeLoadCommand('test-set', { verbose: true });
 
@@ -225,16 +264,27 @@ describe('loadコマンド', () => {
     });
 
     it('ディレクトリ構造を維持して展開する', async () => {
-      (fs.stat as any).mockResolvedValue({
-        isDirectory: () => true,
-      } as any);
-      (glob as any).mockResolvedValueOnce([]).mockResolvedValueOnce(['.claude/commands/subdir/deep.md']);
-      (fs.copy as any).mockResolvedValue(undefined);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
+      vi.mocked(stat).mockImplementation((path: any) => {
+        const pathStr = path.toString();
+        // セットディレクトリは存在する
+        if (pathStr.includes('.claudy/test-set')) {
+          return Promise.resolve({ isDirectory: () => true } as any);
+        }
+        // 現在のディレクトリのファイルは存在しない
+        const error = new Error('ENOENT') as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        return Promise.reject(error);
+      });
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === '.claude/**/*.md') return ['.claude/commands/subdir/deep.md'];
+        return [];
+      });
+      vi.mocked(copy).mockResolvedValue(undefined);
+      vi.mocked(ensureDir).mockResolvedValue(undefined);
 
       await executeLoadCommand('test-set', { verbose: false });
 
-      expect(fs.copy).toHaveBeenCalledWith(
+      expect(copy).toHaveBeenCalledWith(
         '/home/user/.claudy/test-set/.claude/commands/subdir/deep.md',
         '/project/.claude/commands/subdir/deep.md',
         expect.objectContaining({

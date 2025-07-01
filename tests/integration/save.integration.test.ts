@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { executeSaveCommand } from '../../src/commands/save';
 import fs from 'fs-extra';
 import path from 'path';
@@ -8,23 +9,23 @@ const testBaseDir = path.join(os.tmpdir(), 'claudy-test', Date.now().toString())
 const testClaudyDir = path.join(testBaseDir, '.claudy-test');
 
 // utils/pathのモック
-jest.mock('../../src/utils/path', () => ({
-  getClaudyDir: jest.fn(() => testClaudyDir),
+vi.mock('../../src/utils/path', () => ({
+  getClaudyDir: vi.fn(() => testClaudyDir),
 }));
 
 // loggerのモック（実際の出力を抑制）
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    setVerbose: jest.fn(),
-    debug: jest.fn(),
-    info: jest.fn(),
-    success: jest.fn(),
-    error: jest.fn(),
+    setVerbose: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 // inquirerのモック（統合テストでは確認プロンプトを避ける）
-jest.mock('inquirer');
+vi.mock('inquirer');
 
 // 実際のファイルシステムを使用する統合テスト
 describe('saveコマンド統合テスト', () => {
