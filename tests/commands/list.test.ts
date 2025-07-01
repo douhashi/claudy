@@ -1,21 +1,18 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { executeListCommand } from '../../src/commands/list';
 
 // モックの設定
-jest.mock('../../src/utils/logger');
-jest.mock('fs-extra', () => ({
-  access: jest.fn(),
-  readdir: jest.fn(),
-  stat: jest.fn(),
-}));
-jest.mock('../../src/utils/path');
+vi.mock('../../src/utils/logger');
+vi.mock('fs-extra');
+vi.mock('../../src/utils/path');
 
 // モジュールのインポート（モック後に行う）
 import { logger } from '../../src/utils/logger';
 import * as pathUtils from '../../src/utils/path';
 import fs from 'fs-extra';
 
-const mockLogger = logger as jest.Mocked<typeof logger>;
-const mockPathUtils = pathUtils as jest.Mocked<typeof pathUtils>;
+const mockLogger = vi.mocked(logger);
+const mockPathUtils = vi.mocked(pathUtils);
 
 // console.logのモック
 const originalConsoleLog = console.log;
@@ -23,9 +20,9 @@ let consoleOutput: string[] = [];
 
 describe('listコマンド', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     consoleOutput = [];
-    console.log = jest.fn((...args) => {
+    console.log = vi.fn((...args) => {
       consoleOutput.push(args.join(' '));
     });
     
@@ -39,8 +36,8 @@ describe('listコマンド', () => {
 
   describe('executeListCommand', () => {
     it('保存されたセットがない場合、適切なメッセージを表示する', async () => {
-      (fs.access as any).mockResolvedValue(undefined);
-      (fs.readdir as any).mockResolvedValue([]);
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readdir).mockResolvedValue([]);
 
       await executeListCommand({ verbose: false });
 
@@ -77,10 +74,10 @@ describe('listコマンド', () => {
         },
       ];
 
-      (fs.access as any).mockResolvedValue(undefined);
+      vi.mocked(fs.access).mockResolvedValue(undefined);
       
       // statのモック
-      (fs.stat as any).mockImplementation((path: any) => {
+      vi.mocked(fs.stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         const birthtime = new Date('2024-01-01');
         return Promise.resolve({
@@ -91,7 +88,7 @@ describe('listコマンド', () => {
 
       // readdirのモック（ファイル数カウント用）
       const readdirCalls = new Map<string, number>();
-      (fs.readdir as any).mockImplementation((dirPath: any, options?: any) => {
+      vi.mocked(fs.readdir).mockImplementation((dirPath: any, options?: any) => {
         const pathStr = dirPath.toString();
         
         // 同じパスへの呼び出し回数を記録（無限ループ防止）
@@ -140,11 +137,11 @@ describe('listコマンド', () => {
         },
       ];
 
-      (fs.access as any).mockResolvedValue(undefined);
+      vi.mocked(fs.access).mockResolvedValue(undefined);
       
       // readdirのモック - 階層構造を持つファイルシステムを再現
       const readdirCalls = new Map<string, number>();
-      (fs.readdir as any).mockImplementation((dirPath: any, options?: any) => {
+      vi.mocked(fs.readdir).mockImplementation((dirPath: any, options?: any) => {
         const pathStr = dirPath.toString();
         
         // 同じパスへの呼び出し回数を記録（無限ループ防止）
@@ -179,7 +176,7 @@ describe('listコマンド', () => {
         return Promise.resolve([]);
       });
 
-      (fs.stat as any).mockResolvedValue({
+      vi.mocked(fs.stat).mockResolvedValue({
         isDirectory: () => true,
         birthtime: new Date('2024-01-01'),
       } as any);
@@ -202,10 +199,10 @@ describe('listコマンド', () => {
         },
       ];
 
-      (fs.access as any).mockResolvedValue(undefined);
+      vi.mocked(fs.access).mockResolvedValue(undefined);
       
       const readdirCalls = new Map<string, number>();
-      (fs.readdir as any).mockImplementation((dirPath: any, options?: any) => {
+      vi.mocked(fs.readdir).mockImplementation((dirPath: any, options?: any) => {
         const pathStr = dirPath.toString();
         
         // 同じパスへの呼び出し回数を記録（無限ループ防止）
@@ -226,7 +223,7 @@ describe('listコマンド', () => {
         return Promise.resolve([]);
       });
       
-      (fs.stat as any).mockImplementation((path: any) => {
+      vi.mocked(fs.stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         if (pathStr.includes('inaccessible')) {
           // getSetInfoでアクセスエラーがnullとして扱われる
@@ -249,9 +246,9 @@ describe('listコマンド', () => {
     });
 
     it('エラーが発生した場合、適切にラップして再スローする', async () => {
-      (fs.access as any).mockResolvedValue(undefined);
+      vi.mocked(fs.access).mockResolvedValue(undefined);
       const error = new Error('Unexpected error');
-      (fs.readdir as any).mockRejectedValue(error);
+      vi.mocked(fs.readdir).mockRejectedValue(error);
 
       await expect(executeListCommand({ verbose: false })).rejects.toThrow();
     });

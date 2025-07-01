@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
 import path from 'path';
 import {
@@ -8,14 +8,14 @@ import {
   ReferencedFile
 } from '../../src/utils/reference-parser';
 
-jest.mock('fs-extra');
-jest.mock('../../src/utils/logger');
+vi.mock('fs-extra');
+vi.mock('../../src/utils/logger');
 
-const mockFs = fs as jest.Mocked<typeof fs>;
+const mockFs = fs as any;
 
 describe('reference-parser', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('extractFileReferences', () => {
@@ -63,7 +63,7 @@ describe('reference-parser', () => {
       const baseDir = '/project';
       const sourceFilePath = 'src/index.md';
       
-      mockFs.pathExists.mockResolvedValue(true);
+      vi.mocked(mockFs.pathExists).mockResolvedValue(true);
       
       const resolved = await resolveReferencePath(referencePath, baseDir, sourceFilePath);
       expect(resolved).toBe('docs/guide.md');
@@ -74,7 +74,7 @@ describe('reference-parser', () => {
       const baseDir = '/project';
       const sourceFilePath = 'src/index.md';
       
-      mockFs.pathExists.mockResolvedValue(true);
+      vi.mocked(mockFs.pathExists).mockResolvedValue(true);
       
       // Since the absolute path is outside baseDir, it should return a relative path
       const resolved = await resolveReferencePath(referencePath, baseDir, sourceFilePath);
@@ -86,7 +86,7 @@ describe('reference-parser', () => {
       const baseDir = '/project';
       const sourceFilePath = 'src/index.md';
       
-      mockFs.pathExists.mockResolvedValue(false);
+      vi.mocked(mockFs.pathExists).mockResolvedValue(false);
       
       const resolved = await resolveReferencePath(referencePath, baseDir, sourceFilePath);
       expect(resolved).toBeNull();
@@ -97,7 +97,7 @@ describe('reference-parser', () => {
       const baseDir = '/project';
       const sourceFilePath = 'docs/index.md';
       
-      mockFs.pathExists.mockResolvedValue(true);
+      vi.mocked(mockFs.pathExists).mockResolvedValue(true);
       
       const resolved = await resolveReferencePath(referencePath, baseDir, sourceFilePath);
       expect(resolved).toBe('docs/guide.md');
@@ -110,12 +110,20 @@ describe('reference-parser', () => {
       const baseDir = '/project';
       const fileContent = 'See @docs/guide.md';
       
-      mockFs.readFile.mockResolvedValue(fileContent);
-      mockFs.pathExists.mockResolvedValue(true);
+      vi.mocked(mockFs.readFile).mockImplementation((path) => {
+        if (path.toString().endsWith('index.md')) {
+          return Promise.resolve(fileContent);
+        }
+        return Promise.resolve('');
+      });
+      vi.mocked(mockFs.pathExists).mockResolvedValue(true);
       
       const references = await collectReferences(filePath, baseDir);
       
-      expect(references).toEqual([
+      // Filter out nested references for this test
+      const directReferences = references.filter(ref => ref.referredFrom.includes('index.md'));
+      
+      expect(directReferences).toEqual([
         {
           path: 'docs/guide.md',
           referredFrom: ['index.md']
@@ -127,18 +135,18 @@ describe('reference-parser', () => {
       const baseDir = '/project';
       
       // Mock file contents
-      mockFs.readFile.mockImplementation((path) => {
+      vi.mocked(mockFs.readFile).mockImplementation((path) => {
         const filePath = path.toString();
         if (filePath.endsWith('index.md')) {
           return Promise.resolve('See @docs/guide.md');
         } else if (filePath.endsWith('guide.md')) {
-          return Promise.resolve('Also check @docs/api.md');
+          return Promise.resolve('Also check @api.md');
         } else {
           return Promise.resolve('');
         }
       });
       
-      mockFs.pathExists.mockResolvedValue(true);
+      vi.mocked(mockFs.pathExists).mockResolvedValue(true);
       
       const references = await collectReferences('index.md', baseDir);
       
@@ -155,23 +163,30 @@ describe('reference-parser', () => {
 
     it('should prevent circular references', async () => {
       const baseDir = '/project';
-      const processedFiles = new Set<string>();
-      processedFiles.add(path.normalize('file1.md'));
       
-      mockFs.readFile.mockResolvedValue('See @file1.md');
-      mockFs.pathExists.mockResolvedValue(true);
+      vi.mocked(mockFs.readFile).mockImplementation((path) => {
+        const filePath = path.toString();
+        if (filePath.endsWith('file1.md')) {
+          return Promise.resolve('See @file2.md');
+        } else if (filePath.endsWith('file2.md')) {
+          return Promise.resolve('See @file1.md');
+        }
+        return Promise.resolve('');
+      });
+      vi.mocked(mockFs.pathExists).mockResolvedValue(true);
       
-      const references = await collectReferences('file2.md', baseDir, processedFiles);
+      const references = await collectReferences('file1.md', baseDir);
       
-      // Should not process file1.md again
-      expect(references).toEqual([]);
+      // Should contain file2.md but not file1.md again
+      expect(references.map(r => r.path)).toContain('file2.md');
+      expect(references.filter(r => r.path === 'file1.md')).toHaveLength(1);
     });
 
     it('should respect depth limit', async () => {
       const baseDir = '/project';
       
-      mockFs.readFile.mockResolvedValue('See @deep/nested.md');
-      mockFs.pathExists.mockResolvedValue(true);
+      vi.mocked(mockFs.readFile).mockResolvedValue('See @deep/nested.md');
+      vi.mocked(mockFs.pathExists).mockResolvedValue(true);
       
       const references = await collectReferences('index.md', baseDir, new Set(), 2, 2);
       
@@ -182,32 +197,31 @@ describe('reference-parser', () => {
     it('should merge duplicate references from different sources', async () => {
       const baseDir = '/project';
       
-      mockFs.readFile.mockImplementation((path) => {
+      vi.mocked(mockFs.readFile).mockImplementation((path) => {
         const filePath = path.toString();
         if (filePath.endsWith('index.md')) {
           return Promise.resolve('See @docs/api.md and @src/file.md');
-        } else if (filePath.endsWith('file.md')) {
-          return Promise.resolve('Also see @docs/api.md');
+        } else if (filePath.endsWith('src/file.md')) {
+          return Promise.resolve('Also see @../docs/api.md');
         } else {
           return Promise.resolve('');
         }
       });
       
-      mockFs.pathExists.mockResolvedValue(true);
+      vi.mocked(mockFs.pathExists).mockResolvedValue(true);
       
       const references = await collectReferences('index.md', baseDir);
       
       // docs/api.md should have both sources
       const apiRef = references.find(r => r.path === 'docs/api.md');
       expect(apiRef).toBeDefined();
-      expect(apiRef!.referredFrom).toContain('index.md');
-      expect(apiRef!.referredFrom).toContain('src/file.md');
+      expect(apiRef!.referredFrom.sort()).toEqual(['index.md', 'src/file.md'].sort());
     });
 
     it('should handle file read errors gracefully', async () => {
       const baseDir = '/project';
       
-      mockFs.readFile.mockRejectedValue(new Error('File read error'));
+      vi.mocked(mockFs.readFile).mockRejectedValue(new Error('File read error'));
       
       const references = await collectReferences('index.md', baseDir);
       

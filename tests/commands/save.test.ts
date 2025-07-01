@@ -30,6 +30,10 @@ import { performFileSelection } from '../../src/utils/file-selector';
 
 const mockLogger = vi.mocked(logger);
 const mockPathUtils = vi.mocked(pathUtils);
+const mockFs = vi.mocked(fs);
+const mockInquirer = vi.mocked(inquirer);
+const mockGlob = vi.mocked(glob);
+const mockPerformFileSelection = vi.mocked(performFileSelection);
 
 describe('saveコマンド', () => {
   beforeEach(() => {
@@ -64,19 +68,15 @@ describe('saveコマンド', () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
       
-      (glob as any).mockResolvedValue([]);
-      (fs.stat as any).mockRejectedValue(error);
+      mockGlob.mockResolvedValue([]);
+      mockFs.stat.mockRejectedValue(error);
 
-      await expect(executeSaveCommand('test-set', { verbose: false, all: true })).rejects.toThrow(
-        new ClaudyError(
-          '保存対象のファイルが見つかりません。',
-          ErrorCodes.NO_FILES_FOUND
-        )
-      );
+      await expect(executeSaveCommand('test-set', { verbose: false, all: true }))
+        .rejects.toThrow('保存対象のファイルが見つかりません。');
     });
 
     it('インタラクティブモードでファイルが選択されない場合エラーをスローする', async () => {
-      (performFileSelection as any).mockResolvedValue([]);
+      mockPerformFileSelection.mockResolvedValue([]);
 
       await expect(executeSaveCommand('test-set', { verbose: false })).rejects.toThrow(
         new ClaudyError(
@@ -87,12 +87,15 @@ describe('saveコマンド', () => {
     });
 
     it('既存のセットが存在する場合、確認プロンプトを表示する（--allオプション）', async () => {
-      (fs.access as any).mockResolvedValue(undefined);
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (fs.stat as any).mockResolvedValue({
+      mockFs.access.mockResolvedValue(undefined);
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
         isFile: () => true,
       } as any);
-      (inquirer.prompt as any).mockResolvedValue({ overwrite: false });
+      mockInquirer.prompt.mockResolvedValue({ overwrite: false });
 
       await executeSaveCommand('existing-set', { verbose: false, all: true });
 
@@ -108,14 +111,17 @@ describe('saveコマンド', () => {
     });
 
     it('forceオプションが指定された場合、確認なしで上書きする（--allオプション）', async () => {
-      (fs.access as any).mockResolvedValue(undefined);
+      mockFs.access.mockResolvedValue(undefined);
       // globは2回呼ばれる（CLAUDE.mdと.claude/commands/**/*.md）
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (fs.stat as any).mockResolvedValue({
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
         isFile: () => true,
       } as any);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
-      (fs.copy as any).mockResolvedValue(undefined);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
 
       await executeSaveCommand('test-set', { verbose: false, force: true, all: true });
 
@@ -126,37 +132,41 @@ describe('saveコマンド', () => {
     it('デフォルトでインタラクティブモードを使用する', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
-      (fs.access as any).mockRejectedValue(error);
+      mockFs.access.mockRejectedValue(error);
       
-      (performFileSelection as any).mockResolvedValue([
+      mockPerformFileSelection.mockResolvedValue([
         { files: ['CLAUDE.md'], baseDir: process.cwd() }
       ]);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
-      (fs.copy as any).mockResolvedValue(undefined);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
 
       await executeSaveCommand('test-set', { verbose: false });
 
-      expect(performFileSelection).toHaveBeenCalled();
+      expect(mockPerformFileSelection).toHaveBeenCalled();
       expect(mockLogger.success).toHaveBeenCalledWith('✓ 1個のファイルを保存しました');
     });
 
     it('設定ファイルを正しくコピーする（--allオプション）', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
-      (fs.access as any).mockRejectedValue(error);
+      mockFs.access.mockRejectedValue(error);
       
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce(['.claude/commands/test.md']);
-      (fs.stat as any).mockResolvedValue({
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        if (pattern === '.claude/commands/**/*.md') return ['.claude/commands/test.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
         isFile: () => true,
       } as any);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
-      (fs.copy as any).mockResolvedValue(undefined);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
 
       await executeSaveCommand('new-set', { verbose: false, all: true });
 
-      expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.claudy/new-set');
-      expect(fs.copy).toHaveBeenCalledTimes(2);
-      expect(fs.copy).toHaveBeenCalledWith(
+      expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/user/.claudy/new-set');
+      expect(mockFs.copy).toHaveBeenCalledTimes(2);
+      expect(mockFs.copy).toHaveBeenCalledWith(
         expect.stringContaining('CLAUDE.md'),
         '/home/user/.claudy/new-set/CLAUDE.md',
         { overwrite: true }
@@ -168,16 +178,19 @@ describe('saveコマンド', () => {
     it('ディレクトリ作成に失敗した場合、適切にエラーハンドリングする（--allオプション）', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
-      (fs.access as any).mockRejectedValue(error);
+      mockFs.access.mockRejectedValue(error);
       
-      (glob as any).mockResolvedValue(['CLAUDE.md']);
-      (fs.stat as any).mockResolvedValue({
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
         isFile: () => true,
       } as any);
       
       const mkdirError = new Error('Permission denied') as NodeJS.ErrnoException;
       mkdirError.code = 'EACCES';
-      (fs.ensureDir as any).mockRejectedValue(mkdirError);
+      mockFs.ensureDir.mockRejectedValue(mkdirError);
 
       await expect(executeSaveCommand('test-set', { verbose: false, all: true })).rejects.toThrow();
     });
@@ -187,14 +200,17 @@ describe('saveコマンド', () => {
       
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
-      (fs.access as any).mockRejectedValue(error);
+      mockFs.access.mockRejectedValue(error);
       
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (fs.stat as any).mockResolvedValue({
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
         isFile: () => true,
       } as any);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
-      (fs.copy as any).mockResolvedValue(undefined);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
 
       await executeSaveCommand('test-set', { verbose: true, all: true });
 
@@ -206,24 +222,27 @@ describe('saveコマンド', () => {
     it('空のディレクトリは無視される（--allオプション）', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
-      (fs.access as any).mockRejectedValue(error);
+      mockFs.access.mockRejectedValue(error);
       
-      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
-      (fs.stat as any).mockImplementation((path: any) => {
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockImplementation((path: any) => {
         const pathStr = path.toString();
         if (pathStr.endsWith('/')) {
           return Promise.resolve({ isFile: () => false } as any);
         }
         return Promise.resolve({ isFile: () => true } as any);
       });
-      (fs.ensureDir as any).mockResolvedValue(undefined);
-      (fs.copy as any).mockResolvedValue(undefined);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
 
       await executeSaveCommand('test-set', { verbose: false, all: true });
 
       // ディレクトリはコピーされない
-      expect(fs.copy).toHaveBeenCalledTimes(1);
-      expect(fs.copy).toHaveBeenCalledWith(
+      expect(mockFs.copy).toHaveBeenCalledTimes(1);
+      expect(mockFs.copy).toHaveBeenCalledWith(
         expect.stringContaining('CLAUDE.md'),
         expect.any(String),
         expect.any(Object)
@@ -233,14 +252,14 @@ describe('saveコマンド', () => {
     it('ファイル数の内訳を表示する（プロジェクトとユーザーレベル両方）', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
-      (fs.access as any).mockRejectedValue(error);
+      mockFs.access.mockRejectedValue(error);
       
-      (performFileSelection as any).mockResolvedValue([
+      mockPerformFileSelection.mockResolvedValue([
         { files: ['CLAUDE.md'], baseDir: process.cwd() },
         { files: ['.claude/CLAUDE.md'], baseDir: '/home/user' }
       ]);
-      (fs.ensureDir as any).mockResolvedValue(undefined);
-      (fs.copy as any).mockResolvedValue(undefined);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
 
       await executeSaveCommand('test-set', { verbose: false });
 

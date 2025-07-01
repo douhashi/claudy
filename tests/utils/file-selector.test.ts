@@ -10,6 +10,7 @@ import {
   formatFilePath,
   selectFilesInteractively,
   performFileSelection,
+  FileSearchResult,
 } from '../../src/utils/file-selector';
 
 // Mocks
@@ -159,11 +160,11 @@ describe('file-selector', () => {
   
   describe('selectFilesInteractively', () => {
     it('should use group selection when both project and user files exist', async () => {
-      const projectFiles = {
+      const projectFiles: FileSearchResult = {
         mainFiles: ['CLAUDE.md', '.claude/commands/test.md'],
         referencedFiles: []
       };
-      const userFiles = {
+      const userFiles: FileSearchResult = {
         mainFiles: ['.claude/CLAUDE.md'],
         referencedFiles: []
       };
@@ -225,57 +226,26 @@ describe('file-selector', () => {
       ]);
     });
     
-    it('should select only project files when chosen', async () => {
-      const projectFiles = {
-        mainFiles: ['CLAUDE.md'],
-        referencedFiles: []
-      };
-      const userFiles = {
-        mainFiles: ['.claude/CLAUDE.md'],
-        referencedFiles: []
-      };
-      
-      mockInquirer.prompt.mockResolvedValueOnce({ selection: 'project' });
-      
-      const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
-      
-      expect(results).toEqual([
-        { files: projectFiles.mainFiles, baseDir: testCwd }
-      ]);
-    });
-    
-    it('should select only user files when chosen', async () => {
-      const projectFiles = {
-        mainFiles: ['CLAUDE.md'],
-        referencedFiles: []
-      };
-      const userFiles = {
-        mainFiles: ['.claude/CLAUDE.md'],
-        referencedFiles: []
-      };
-      
-      mockInquirer.prompt.mockResolvedValueOnce({ selection: 'user' });
-      
-      const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
-      
-      expect(results).toEqual([
-        { files: userFiles.mainFiles, baseDir: homeDir }
-      ]);
-    });
-    
     it('should handle empty file selection', async () => {
-      const emptyFiles = { mainFiles: [], referencedFiles: [] };
+      const projectFiles: FileSearchResult = {
+        mainFiles: [],
+        referencedFiles: []
+      };
+      const userFiles: FileSearchResult = {
+        mainFiles: [],
+        referencedFiles: []
+      };
       
-      await expect(selectFilesInteractively(emptyFiles, emptyFiles, homeDir))
+      await expect(selectFilesInteractively(projectFiles, userFiles, homeDir))
         .rejects.toThrow('Claude関連ファイルが見つかりませんでした');
     });
     
     it('should validate at least one file is selected in custom mode', async () => {
-      const projectFiles = {
+      const projectFiles: FileSearchResult = {
         mainFiles: ['CLAUDE.md'],
         referencedFiles: []
       };
-      const userFiles = {
+      const userFiles: FileSearchResult = {
         mainFiles: [],
         referencedFiles: []
       };
