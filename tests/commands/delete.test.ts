@@ -32,21 +32,31 @@ describe('deleteコマンド', () => {
     
     // デフォルトのモック設定
     mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.config/claudy');
-    mockPathUtils.getProjectConfigDir.mockReturnValue('/home/user/.config/claudy/projects/abcdef123456');
+    mockPathUtils.getSetsDir.mockReturnValue('/home/user/.config/claudy/sets');
+    mockPathUtils.getSetDir.mockReturnValue('/home/user/.config/claudy/sets/test-set');
+    mockPathUtils.validateSetName.mockImplementation((name) => {
+      if (!name || name.trim() === '') {
+        throw new ClaudyError('セット名を指定してください', ErrorCodes.INVALID_SET_NAME);
+      }
+    });
   });
 
   describe('executeDeleteCommand', () => {
     it('セット名が指定されていない場合エラーをスローする', async () => {
+      mockPathUtils.validateSetName.mockImplementation(() => {
+        throw new ClaudyError('セット名を指定してください', ErrorCodes.INVALID_SET_NAME);
+      });
+
       await expect(executeDeleteCommand('', { verbose: false })).rejects.toThrow(
         new ClaudyError(
-          'セット名が無効です。英数字、ハイフン、アンダースコアのみ使用できます。',
-          ErrorCodes.INVALID_SET_NAME,
-          { setName: '' }
+          'セット名を指定してください',
+          ErrorCodes.INVALID_SET_NAME
         )
       );
     });
 
     it('セットが存在しない場合エラーをスローする', async () => {
+      mockPathUtils.getSetDir.mockReturnValue('/home/user/.config/claudy/sets/nonexistent');
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
       mockFs.stat.mockRejectedValue(error);
@@ -55,7 +65,7 @@ describe('deleteコマンド', () => {
         new ClaudyError(
           'セット "nonexistent" が見つかりません',
           ErrorCodes.SET_NOT_FOUND,
-          { setName: 'nonexistent', path: '/home/user/.config/claudy/projects/abcdef123456/nonexistent' }
+          { setName: 'nonexistent', path: '/home/user/.config/claudy/sets/nonexistent' }
         )
       );
     });
@@ -92,7 +102,7 @@ describe('deleteコマンド', () => {
         },
       ]);
 
-      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/projects/abcdef123456/test-set');
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/sets/test-set');
       expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" を削除しました');
       expect(mockLogger.info).toHaveBeenCalledWith('\n現在のセット一覧を確認するには:');
       expect(mockLogger.info).toHaveBeenCalledWith('  $ claudy list');
@@ -108,7 +118,7 @@ describe('deleteコマンド', () => {
       await executeDeleteCommand('test-set', { verbose: false, force: true });
 
       expect(inquirer.prompt).not.toHaveBeenCalled();
-      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/projects/abcdef123456/test-set');
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/sets/test-set');
       expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" を削除しました');
     });
 
@@ -125,7 +135,7 @@ describe('deleteコマンド', () => {
         executeDeleteCommand('test-set', { verbose: false, force: true })
       ).rejects.toThrow();
 
-      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/projects/abcdef123456/test-set');
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/sets/test-set');
     });
 
     it('verboseモードで詳細ログを出力する', async () => {
@@ -141,10 +151,11 @@ describe('deleteコマンド', () => {
 
       expect(mockLogger.setVerbose).toHaveBeenCalledWith(true);
       expect(mockLogger.debug).toHaveBeenCalledWith('削除対象セット: test-set');
-      expect(mockLogger.debug).toHaveBeenCalledWith('セットパス: /home/user/.config/claudy/projects/abcdef123456/test-set');
+      expect(mockLogger.debug).toHaveBeenCalledWith('セットパス: /home/user/.config/claudy/sets/test-set');
     });
 
     it('セットパスがファイルの場合、存在しないものとして扱う', async () => {
+      mockPathUtils.getSetDir.mockReturnValue('/home/user/.config/claudy/sets/file-not-dir');
       mockFs.stat.mockResolvedValue({
         isDirectory: () => false,
       } as any);
@@ -153,7 +164,7 @@ describe('deleteコマンド', () => {
         new ClaudyError(
           'セット "file-not-dir" が見つかりません',
           ErrorCodes.SET_NOT_FOUND,
-          { setName: 'file-not-dir', path: '/home/user/.config/claudy/projects/abcdef123456/file-not-dir' }
+          { setName: 'file-not-dir', path: '/home/user/.config/claudy/sets/file-not-dir' }
         )
       );
     });

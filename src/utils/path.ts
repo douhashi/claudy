@@ -101,3 +101,65 @@ export function resolvePath(inputPath: string): string {
 export function normalizePathSeparators(inputPath: string): string {
   return inputPath.replace(/\\/g, '/');
 }
+
+/**
+ * 設定セットのベースディレクトリを取得
+ * @returns 設定セットディレクトリのパス
+ */
+export function getSetsDir(): string {
+  return path.join(getClaudyDir(), 'sets');
+}
+
+/**
+ * 設定セットのディレクトリを取得
+ * @param setName セット名（階層的な名前をサポート）
+ * @returns セットディレクトリのパス
+ */
+export function getSetDir(setName: string): string {
+  // セット名のバリデーション
+  validateSetName(setName);
+  return path.join(getSetsDir(), setName);
+}
+
+/**
+ * セット名のバリデーション
+ * @param setName セット名
+ * @throws {ClaudyError} 無効なセット名の場合
+ */
+export function validateSetName(setName: string): void {
+  if (!setName || setName.trim() === '') {
+    throw new ClaudyError('セット名を指定してください', 'INVALID_SET_NAME');
+  }
+
+  // パストラバーサル攻撃の防止
+  const normalizedName = path.normalize(setName);
+  if (normalizedName.includes('..') || path.isAbsolute(normalizedName)) {
+    throw new ClaudyError('無効なセット名です', 'INVALID_SET_NAME', { setName });
+  }
+
+  // OSごとの予約語と特殊文字のチェック
+  const invalidChars = /[:*?"<>|]/;
+  const invalidNames = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'LPT1', 'PROFILES'];
+  
+  // スラッシュで分割して各パートをチェック
+  const parts = setName.split('/');
+  for (const part of parts) {
+    if (!part || part.trim() === '') {
+      throw new ClaudyError('セット名に空のパートが含まれています', 'INVALID_SET_NAME', { setName });
+    }
+    
+    if (invalidChars.test(part)) {
+      throw new ClaudyError('セット名に使用できない文字が含まれています', 'INVALID_SET_NAME', { setName });
+    }
+    
+    const upperPart = part.toUpperCase();
+    if (invalidNames.includes(upperPart)) {
+      throw new ClaudyError(`"${part}"は予約語のため使用できません`, 'INVALID_SET_NAME', { setName });
+    }
+    
+    // ドットで始まる名前の禁止
+    if (part.startsWith('.')) {
+      throw new ClaudyError('セット名はドットで始めることはできません', 'INVALID_SET_NAME', { setName });
+    }
+  }
+}
