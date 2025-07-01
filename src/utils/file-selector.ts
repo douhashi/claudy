@@ -171,21 +171,19 @@ export async function selectFilesInteractively(
     );
   }
   
-  const { selectedFiles } = await inquirer.prompt<{ selectedFiles: string[] }>([
-    {
-      type: 'checkbox',
-      name: 'selectedFiles',
-      message: '保存するファイルを選択してください (スペースで選択/解除):',
-      choices,
-      pageSize: 15,
-      validate: (input: string[]): boolean | string => {
-        if (input.length === 0) {
-          return '少なくとも1つのファイルを選択してください';
-        }
-        return true;
-      },
+  const { selectedFiles } = await inquirer.prompt<{ selectedFiles: string[] }>({
+    type: 'checkbox',
+    name: 'selectedFiles',
+    message: '保存するファイルを選択してください (スペースで選択/解除):',
+    choices,
+    pageSize: 15,
+    validate: (input: any): boolean | string => {
+      if (!input || input.length === 0) {
+        return '少なくとも1つのファイルを選択してください';
+      }
+      return true;
     },
-  ]);
+  });
   
   // 選択されたファイルを分類
   const selectedProjectFiles: string[] = [];
