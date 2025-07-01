@@ -67,16 +67,26 @@ pnpm add -g claudy
 ### コマンド一覧
 
 #### `claudy save <name>`
-現在のディレクトリの設定ファイルを指定した名前で保存します。
+Claude設定ファイルを名前付きセットとして保存します。デフォルトでインタラクティブにファイルを選択できます。
 
 ```bash
-claudy save frontend        # "frontend"という名前で保存
+claudy save myproject       # インタラクティブにファイルを選択して保存（デフォルト）
+claudy save frontend -a     # 全ファイルを自動的に保存
 claudy save backend -f      # 既存のセットを強制上書き
+claudy save project-v2 -a -f # 全ファイルを自動保存し、既存セットを上書き
 ```
 
+**オプション:**
+- `-a, --all` - 全ファイルを自動的に保存（インタラクティブ選択をスキップ）
+- `-f, --force` - 既存のセットを確認なしで上書き
+
 **対象ファイル:**
-- `CLAUDE.md` - メインの設定ファイル
-- `.claude/commands/**/*.md` - カスタムコマンド定義
+- プロジェクトレベル:
+  - `CLAUDE.md` - メインの設定ファイル
+  - `.claude/commands/**/*.md` - カスタムコマンド定義
+- ユーザーレベル（デフォルトで選択可能）:
+  - `~/.claude/CLAUDE.md` - グローバル設定
+  - `~/.claude/commands/**/*.md` - グローバルコマンド
 
 #### `claudy load <name>`
 保存済みの設定セットを現在のディレクトリに展開します。
@@ -128,7 +138,7 @@ cd ~/templates/react-app
 vim CLAUDE.md
 # ... Claude AI用の詳細な指示を記載 ...
 
-# テンプレートとして保存
+# テンプレートとして保存（インタラクティブに必要なファイルのみ選択）
 claudy save react-template
 
 # 新しいプロジェクトで使用
@@ -139,8 +149,8 @@ claudy load react-template
 ### チーム内での設定共有
 
 ```bash
-# チームの標準設定を保存
-claudy save team-standard
+# チームの標準設定を保存（全ファイルを含む）
+claudy save team-standard -a
 
 # 他のメンバーも同じ設定を使用
 claudy load team-standard

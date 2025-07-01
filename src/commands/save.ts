@@ -14,6 +14,7 @@ interface SaveOptions {
   verbose?: boolean;
   force?: boolean;
   interactive?: boolean;
+  all?: boolean;
 }
 
 /**
@@ -182,19 +183,8 @@ export async function executeSaveCommand(
     let fileGroups: FileSelectionResult[];
     let totalFiles = 0;
     
-    if (options.interactive) {
-      // インタラクティブモード
-      fileGroups = await performFileSelection();
-      totalFiles = fileGroups.reduce((count, group) => count + group.files.length, 0);
-      
-      if (totalFiles === 0) {
-        throw new ClaudyError(
-          'ファイルが選択されませんでした',
-          ErrorCodes.NO_FILES_FOUND
-        );
-      }
-    } else {
-      // 従来のモード（現在のディレクトリのみ）
+    if (options.all) {
+      // --allフラグが指定された場合（従来のモード）
       const currentDir = process.cwd();
       logger.debug(`現在のディレクトリ: ${currentDir}`);
       
@@ -214,6 +204,17 @@ export async function executeSaveCommand(
       
       fileGroups = [{ files, baseDir: currentDir }];
       totalFiles = files.length;
+    } else {
+      // デフォルト動作（インタラクティブモード）
+      fileGroups = await performFileSelection();
+      totalFiles = fileGroups.reduce((count, group) => count + group.files.length, 0);
+      
+      if (totalFiles === 0) {
+        throw new ClaudyError(
+          'ファイルが選択されませんでした',
+          ErrorCodes.NO_FILES_FOUND
+        );
+      }
     }
     
     // 保存先のパス
@@ -243,13 +244,31 @@ export async function executeSaveCommand(
     await copyFilesFromMultipleSources(fileGroups, setPath);
     
     // 成功メッセージ
-    logger.success(`✓ セット "${name}" に${totalFiles}個のファイルを保存しました`);
+    logger.success(`✓ ${totalFiles}個のファイルを保存しました`);
+    logger.info(`セット名: "${name}"`);
     logger.info(`保存先: ${setPath}`);
+    
+    // ファイル数の内訳を表示
+    let projectFileCount = 0;
+    let userFileCount = 0;
+    fileGroups.forEach(group => {
+      if (group.baseDir === process.cwd()) {
+        projectFileCount += group.files.length;
+      } else {
+        userFileCount += group.files.length;
+      }
+    });
+    
+    if (projectFileCount > 0 && userFileCount > 0) {
+      logger.info(`  - プロジェクトレベル: ${projectFileCount}個`);
+      logger.info(`  - ユーザーレベル: ${userFileCount}個`);
+    }
+    
     logger.info('\n次のコマンドでこのセットを利用できます:');
     logger.info(`  $ claudy load ${name}`);
     
     if (options.verbose) {
-      logger.info('保存されたファイル:');
+      logger.info('\n保存されたファイル:');
       fileGroups.forEach(group => {
         const prefix = group.baseDir === process.cwd() ? './' : '~/';
         group.files.forEach(file => {
@@ -272,15 +291,16 @@ export async function executeSaveCommand(
 export function registerSaveCommand(program: Command): void {
   program
     .command('save <name>')
-    .description('現在のディレクトリのClaude設定ファイルを名前付きセットとして保存')
+    .description('Claude設定ファイルを名前付きセットとして保存（デフォルトはインタラクティブモード）')
     .option('-f, --force', '既存のセットを確認なしで上書き')
-    .option('-i, --interactive', 'インタラクティブにファイルを選択（ユーザーレベルのファイルも含む）')
+    .option('-a, --all', '全ファイルを自動的に保存（インタラクティブ選択をスキップ）')
+    .option('-i, --interactive', '(廃止予定) デフォルトでインタラクティブモードが有効です')
     .addHelpText('after', `
 使用例:
-  $ claudy save frontend           # フロントエンドプロジェクトの設定を保存
+  $ claudy save myproject          # インタラクティブにファイルを選択して保存（デフォルト）
+  $ claudy save frontend -a        # 全ファイルを自動的に保存
   $ claudy save backend -f         # 既存の"backend"セットを上書き
-  $ claudy save project-v2         # バージョン付きで保存
-  $ claudy save myconfig -i        # インタラクティブにファイルを選択して保存
+  $ claudy save project-v2 -a -f   # 全ファイルを自動保存し、既存セットを上書き
 
 保存対象ファイル:
   プロジェクトレベル:
@@ -288,12 +308,17 @@ export function registerSaveCommand(program: Command): void {
     - CLAUDE.local.md              # ローカル設定（存在する場合）
     - .claude/**/*.md              # カスタムコマンド
   
-  ユーザーレベル（-i オプション時）:
+  ユーザーレベル（デフォルトで選択可能）:
     - ~/.claude/CLAUDE.md          # グローバル設定
     - ~/.claude/commands/**/*.md   # グローバルコマンド`)
     .action(async (name: string, options: SaveOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;
+      
+      // -iオプションが指定された場合は警告を表示
+      if (options.interactive) {
+        logger.warn('注意: -i/--interactive オプションは廃止予定です。デフォルトでインタラクティブモードが有効になっています。');
+      }
       
       try {
         await executeSaveCommand(name, options);
