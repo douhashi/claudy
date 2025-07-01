@@ -1,7 +1,8 @@
-import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
+const fs = fsExtra;
 import path from 'path';
-import { ClaudyError } from '../types';
-import { logger } from './logger';
+import { ClaudyError } from '../types/index.js';
+import { logger } from './logger.js';
 
 export async function ensureDir(dirPath: string): Promise<void> {
   try {

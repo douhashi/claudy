@@ -1,7 +1,7 @@
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
-import { ClaudyError } from '../types';
+import { ClaudyError } from '../types/index.js';
 
 export function getHomeDir(): string {
   const homeDir = os.homedir();

@@ -1,4 +1,4 @@
-import { ClaudyConfig, ClaudyError } from '../types';
+import { ClaudyConfig, ClaudyError } from '../types/index.js';
 import { 
   getConfigPath, 
   getClaudyDir, 
@@ -6,9 +6,9 @@ import {
   getUserConfigDir,
   getProjectsDir,
   getLegacyClaudyDir
-} from './path';
-import { readJson, writeJson, fileExists, ensureDir, copyFileOrDir } from './file';
-import { logger } from './logger';
+} from './path.js';
+import { readJson, writeJson, fileExists, ensureDir, copyFileOrDir } from './file.js';
+import { logger } from './logger.js';
 import path from 'path';
 
 const DEFAULT_CONFIG: ClaudyConfig = {

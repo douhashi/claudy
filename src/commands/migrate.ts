@@ -1,9 +1,9 @@
 import { Command } from 'commander';
-import { logger } from '../utils/logger';
-import { ClaudyError } from '../types';
-import { ErrorCodes, wrapError } from '../types/errors';
-import { handleError } from '../utils/errorHandler';
-import { checkAndMigrateLegacyConfig } from '../utils/config';
+import { logger } from '../utils/logger.js';
+import { ClaudyError } from '../types/index.js';
+import { ErrorCodes, wrapError } from '../types/errors.js';
+import { handleError } from '../utils/errorHandler.js';
+import { checkAndMigrateLegacyConfig } from '../utils/config.js';
 
 interface MigrateOptions {
   verbose?: boolean;

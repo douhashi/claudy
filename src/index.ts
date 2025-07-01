@@ -3,16 +3,20 @@
 import { Command } from 'commander';
 import { readFile } from 'fs/promises';
 import path from 'path';
-import { logger } from './utils/logger';
-import { initializeClaudyDir } from './utils/config';
-import { ClaudyError } from './types';
-import { ErrorCodes, formatErrorMessage } from './types/errors';
-import { handleError as handleClaudyError } from './utils/errorHandler';
-import { registerSaveCommand } from './commands/save';
-import { registerLoadCommand } from './commands/load';
-import { registerListCommand } from './commands/list';
-import { registerDeleteCommand } from './commands/delete';
-import { registerMigrateCommand } from './commands/migrate';
+import { fileURLToPath } from 'url';
+import { logger } from './utils/logger.js';
+import { initializeClaudyDir } from './utils/config.js';
+import { ClaudyError } from './types/index.js';
+import { ErrorCodes, formatErrorMessage } from './types/errors.js';
+import { handleError as handleClaudyError } from './utils/errorHandler.js';
+import { registerSaveCommand } from './commands/save.js';
+import { registerLoadCommand } from './commands/load.js';
+import { registerListCommand } from './commands/list.js';
+import { registerDeleteCommand } from './commands/delete.js';
+import { registerMigrateCommand } from './commands/migrate.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function getPackageVersion(): Promise<string> {
   try {

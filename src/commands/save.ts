@@ -1,14 +1,15 @@
 import { Command } from 'commander';
 import path from 'path';
 import { glob } from 'glob';
-import fs from 'fs-extra';
+import fsExtra from 'fs-extra';
+const fs = fsExtra;
 import inquirer from 'inquirer';
-import { logger } from '../utils/logger';
-import { ClaudyError } from '../types';
-import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
-import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler';
-import { getProjectConfigDir } from '../utils/path';
-import { performFileSelection, FileSelectionResult } from '../utils/file-selector';
+import { logger } from '../utils/logger.js';
+import { ClaudyError } from '../types/index.js';
+import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors.js';
+import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler.js';
+import { getProjectConfigDir } from '../utils/path.js';
+import { performFileSelection, FileSelectionResult } from '../utils/file-selector.js';
 
 interface SaveOptions {
   verbose?: boolean;
