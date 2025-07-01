@@ -5,6 +5,8 @@ import fs from 'fs-extra';
 import inquirer from 'inquirer';
 import { logger } from '../utils/logger';
 import { ClaudyError } from '../types';
+import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
+import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler';
 import { getClaudyDir } from '../utils/path';
 
 interface SaveOptions {
@@ -21,20 +23,26 @@ function validateSetName(name: string): void {
   const invalidChars = /[/\\:*?"<>|]/;
   
   if (!name || name.trim().length === 0) {
-    throw new ClaudyError('セット名が指定されていません', 'INVALID_SET_NAME');
+    throw new ClaudyError(
+      'セット名が指定されていません',
+      ErrorCodes.INVALID_SET_NAME,
+      { setName: name }
+    );
   }
   
   if (invalidChars.test(name)) {
     throw new ClaudyError(
       'セット名に使用できない文字が含まれています（/, \\, :, *, ?, ", <, >, |）',
-      'INVALID_SET_NAME'
+      ErrorCodes.INVALID_SET_NAME,
+      { setName: name, invalidChars: name.match(invalidChars) }
     );
   }
   
   if (name.length > 255) {
     throw new ClaudyError(
       'セット名は255文字以内で指定してください',
-      'INVALID_SET_NAME'
+      ErrorCodes.INVALID_SET_NAME,
+      { setName: name, length: name.length }
     );
   }
 }
@@ -73,8 +81,13 @@ async function existsSet(setPath: string): Promise<boolean> {
   try {
     await fs.access(setPath);
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    const systemError = error as NodeJS.ErrnoException;
+    if (systemError.code === 'ENOENT') {
+      return false;
+    }
+    // その他のエラー（権限など）は再スロー
+    throw wrapError(error, ErrorCodes.FILE_READ_ERROR, undefined, { path: setPath });
   }
 }
 
@@ -93,11 +106,36 @@ async function copyFiles(
     const sourcePath = path.join(sourceDir, file);
     const targetPath = path.join(targetDir, file);
     
-    // ディレクトリを作成
-    await fs.ensureDir(path.dirname(targetPath));
-    
-    // ファイルをコピー
-    await fs.copy(sourcePath, targetPath, { overwrite: true });
+    try {
+      // ディレクトリを作成
+      await handleFileOperation(
+        () => fs.ensureDir(path.dirname(targetPath)),
+        ErrorCodes.DIR_CREATE_ERROR,
+        path.dirname(targetPath)
+      );
+      
+      // ファイルをコピー（リトライ機能付き）
+      await withRetry(
+        () => handleFileOperation(
+          () => fs.copy(sourcePath, targetPath, { overwrite: true }),
+          ErrorCodes.FILE_COPY_ERROR,
+          sourcePath
+        ),
+        { maxAttempts: 3, delay: 500 }
+      );
+    } catch (error) {
+      // エラーにファイル情報を追加して再スロー
+      if (error instanceof ClaudyError) {
+        const details = { 
+          ...(typeof error.details === 'object' && error.details !== null ? error.details : {}), 
+          file, 
+          sourcePath, 
+          targetPath 
+        };
+        throw new ClaudyError(error.message, error.code, details);
+      }
+      throw error;
+    }
   }
 }
 
@@ -127,8 +165,9 @@ export async function executeSaveCommand(
     
     if (files.length === 0) {
       throw new ClaudyError(
-        'Claude設定ファイルが見つかりませんでした',
-        'NO_FILES_FOUND'
+        ErrorMessages[ErrorCodes.NO_FILES_FOUND],
+        ErrorCodes.NO_FILES_FOUND,
+        { patterns: ['CLAUDE.md', '.claude/commands/**/*.md'], searchDir: currentDir }
       );
     }
     
@@ -175,11 +214,7 @@ export async function executeSaveCommand(
     if (error instanceof ClaudyError) {
       throw error;
     }
-    throw new ClaudyError(
-      'セットの保存中にエラーが発生しました',
-      'SAVE_ERROR',
-      error
-    );
+    throw wrapError(error, ErrorCodes.SAVE_ERROR, 'セットの保存中にエラーが発生しました', { setName: name });
   }
 }
 
@@ -193,6 +228,13 @@ export function registerSaveCommand(program: Command): void {
     .description('現在のディレクトリのClaude設定ファイルを名前付きセットとして保存')
     .option('-f, --force', '既存のセットを確認なしで上書き')
     .action(async (name: string, options: SaveOptions) => {
-      await executeSaveCommand(name, options);
+      const globalOptions = program.opts();
+      options.verbose = globalOptions.verbose || false;
+      
+      try {
+        await executeSaveCommand(name, options);
+      } catch (error) {
+        await handleError(error, ErrorCodes.SAVE_ERROR);
+      }
     });
 }

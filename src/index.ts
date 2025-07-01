@@ -6,6 +6,8 @@ import path from 'path';
 import { logger } from './utils/logger';
 import { initializeClaudyDir } from './utils/config';
 import { ClaudyError } from './types';
+import { ErrorCodes, formatErrorMessage } from './types/errors';
+import { handleError as handleClaudyError } from './utils/errorHandler';
 import { registerSaveCommand } from './commands/save';
 import { registerLoadCommand } from './commands/load';
 import { registerListCommand } from './commands/list';
@@ -45,7 +47,7 @@ async function main(): Promise<void> {
           await initializeClaudyDir();
           logger.success('claudyの初期化が完了しました');
         } catch (error) {
-          handleError(error);
+          await handleClaudyError(error, ErrorCodes.INTERNAL_ERROR);
         }
       });
 
@@ -73,10 +75,7 @@ async function main(): Promise<void> {
 
 function handleError(error: unknown): void {
   if (error instanceof ClaudyError) {
-    logger.error(error.message);
-    if (error.details) {
-      logger.debug(JSON.stringify(error.details, null, 2));
-    }
+    logger.error(formatErrorMessage(error, true, true));
   } else if (error instanceof Error) {
     logger.error(`予期しないエラーが発生しました: ${error.message}`);
     logger.debug(error.stack || '');

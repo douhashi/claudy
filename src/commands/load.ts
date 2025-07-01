@@ -1,11 +1,13 @@
 import { Command } from 'commander';
 import path from 'path';
-import { stat, copy, rename } from 'fs-extra';
+import { stat, copy, rename, remove } from 'fs-extra';
 import inquirer from 'inquirer';
 import { logger } from '../utils/logger';
 import { getClaudyDir } from '../utils/path';
 import { ClaudyError } from '../types';
 import { glob } from 'glob';
+import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
+import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler';
 
 interface LoadOptions {
   verbose?: boolean;
@@ -28,18 +30,7 @@ export function registerLoadCommand(program: Command): void {
 
         await loadSet(name, options);
       } catch (error) {
-        if (error instanceof ClaudyError) {
-          logger.error(error.message);
-          if (error.details) {
-            logger.debug(JSON.stringify(error.details, null, 2));
-          }
-        } else if (error instanceof Error) {
-          logger.error(`エラーが発生しました: ${error.message}`);
-          logger.debug(error.stack || '');
-        } else {
-          logger.error('予期しないエラーが発生しました');
-        }
-        process.exit(1);
+        await handleError(error, ErrorCodes.LOAD_ERROR, '設定セットの読み込み中にエラーが発生しました');
       }
     });
 }
@@ -51,12 +42,16 @@ async function loadSet(name: string, options: LoadOptions): Promise<void> {
   // セットの存在確認
   try {
     await stat(setDir);
-  } catch {
-    throw new ClaudyError(
-      `設定セット "${name}" が見つかりません`,
-      'SET_NOT_FOUND',
-      { setName: name }
-    );
+  } catch (error) {
+    const systemError = error as NodeJS.ErrnoException;
+    if (systemError.code === 'ENOENT') {
+      throw new ClaudyError(
+        `設定セット "${name}" が見つかりません`,
+        ErrorCodes.SET_NOT_FOUND,
+        { setName: name, path: setDir }
+      );
+    }
+    throw wrapError(error, ErrorCodes.FILE_READ_ERROR, undefined, { path: setDir });
   }
 
   logger.info(`設定セット "${name}" を展開します`);
@@ -150,14 +145,22 @@ async function createBackups(files: string[]): Promise<void> {
     const backupPath = `${targetPath}.bak`;
     
     try {
-      await rename(targetPath, backupPath);
+      await handleFileOperation(
+        () => rename(targetPath, backupPath),
+        ErrorCodes.BACKUP_FAILED,
+        targetPath
+      );
       logger.debug(`バックアップ作成: ${file} -> ${file}.bak`);
     } catch (error) {
-      throw new ClaudyError(
-        `バックアップの作成に失敗しました: ${file}`,
-        'BACKUP_FAILED',
-        { file, error }
-      );
+      if (error instanceof ClaudyError) {
+        const details = { 
+          ...(typeof error.details === 'object' && error.details !== null ? error.details : {}), 
+          file, 
+          backupPath 
+        };
+        throw new ClaudyError(error.message, error.code, details);
+      }
+      throw error;
     }
   }
 }
@@ -169,12 +172,28 @@ async function expandFiles(files: string[], setDir: string): Promise<void> {
   for (const file of files) {
     const sourcePath = path.join(setDir, file);
     const targetPath = path.join(process.cwd(), file);
+    const targetDir = path.dirname(targetPath);
     
     try {
-      await copy(sourcePath, targetPath, {
-        overwrite: true,
-        preserveTimestamps: true
-      });
+      // ディレクトリを作成
+      await handleFileOperation(
+        () => stat(targetDir).catch(() => copy(sourcePath, targetPath, { overwrite: true, preserveTimestamps: true })),
+        ErrorCodes.DIR_CREATE_ERROR,
+        targetDir
+      );
+      
+      // ファイルをコピー（リトライ機能付き）
+      await withRetry(
+        () => handleFileOperation(
+          () => copy(sourcePath, targetPath, {
+            overwrite: true,
+            preserveTimestamps: true
+          }),
+          ErrorCodes.FILE_COPY_ERROR,
+          sourcePath
+        ),
+        { maxAttempts: 3, delay: 500 }
+      );
       
       expandedFiles.push(file);
       logger.debug(`展開完了: ${file}`);
@@ -187,22 +206,34 @@ async function expandFiles(files: string[], setDir: string): Promise<void> {
   // エラーがある場合はロールバック
   if (errors.length > 0) {
     logger.error('ファイルの展開中にエラーが発生しました');
+    logger.info('ロールバックを実行しています...');
     
     // 展開済みファイルを削除（ロールバック）
+    const rollbackErrors: string[] = [];
     for (const file of expandedFiles) {
       try {
         const targetPath = path.join(process.cwd(), file);
-        await stat(targetPath);
-        // TODO: ロールバック処理の実装
-      } catch {
-        // ファイルが存在しない場合は無視
+        await handleFileOperation(
+          () => remove(targetPath),
+          ErrorCodes.FILE_DELETE_ERROR,
+          targetPath
+        );
+        logger.debug(`ロールバック: ${file}`);
+      } catch (rollbackError) {
+        rollbackErrors.push(file);
+        logger.warn(`ロールバック失敗: ${file}`);
       }
     }
 
+    const errorDetails = {
+      errors,
+      rollbackErrors: rollbackErrors.length > 0 ? rollbackErrors : undefined
+    };
+
     throw new ClaudyError(
-      'ファイルの展開に失敗しました',
-      'EXPAND_FAILED',
-      { errors }
+      ErrorMessages[ErrorCodes.EXPAND_FAILED],
+      ErrorCodes.EXPAND_FAILED,
+      errorDetails
     );
   }
 }

@@ -5,6 +5,8 @@ import inquirer from 'inquirer';
 import { logger } from '../utils/logger';
 import { ClaudyError } from '../types';
 import { getClaudyDir } from '../utils/path';
+import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
+import { handleFileOperation, handleError } from '../utils/errorHandler';
 
 interface DeleteOptions {
   verbose?: boolean;
@@ -20,8 +22,13 @@ async function existsSet(setPath: string): Promise<boolean> {
   try {
     const stats = await fs.stat(setPath);
     return stats.isDirectory();
-  } catch {
-    return false;
+  } catch (error) {
+    const systemError = error as NodeJS.ErrnoException;
+    if (systemError.code === 'ENOENT') {
+      return false;
+    }
+    // その他のエラー（権限など）は再スロー
+    throw wrapError(error, ErrorCodes.FILE_READ_ERROR, undefined, { path: setPath });
   }
 }
 
@@ -30,15 +37,11 @@ async function existsSet(setPath: string): Promise<boolean> {
  * @param setPath - セットのパス
  */
 async function deleteSet(setPath: string): Promise<void> {
-  try {
-    await fs.remove(setPath);
-  } catch (error) {
-    throw new ClaudyError(
-      'セットの削除中にエラーが発生しました',
-      'DELETE_FAILED',
-      error
-    );
-  }
+  await handleFileOperation(
+    () => fs.remove(setPath),
+    ErrorCodes.DELETE_FAILED,
+    setPath
+  );
 }
 
 /**
@@ -55,7 +58,11 @@ export async function executeDeleteCommand(
     
     // セット名のバリデーション
     if (!name || name.trim().length === 0) {
-      throw new ClaudyError('セット名が指定されていません', 'INVALID_SET_NAME');
+      throw new ClaudyError(
+        ErrorMessages[ErrorCodes.INVALID_SET_NAME],
+        ErrorCodes.INVALID_SET_NAME,
+        { setName: name }
+      );
     }
     
     logger.debug(`削除対象セット: ${name}`);
@@ -68,7 +75,8 @@ export async function executeDeleteCommand(
     if (!await existsSet(setPath)) {
       throw new ClaudyError(
         `セット "${name}" が見つかりません`,
-        'SET_NOT_FOUND'
+        ErrorCodes.SET_NOT_FOUND,
+        { setName: name, path: setPath }
       );
     }
     
@@ -100,11 +108,7 @@ export async function executeDeleteCommand(
     if (error instanceof ClaudyError) {
       throw error;
     }
-    throw new ClaudyError(
-      'セットの削除中にエラーが発生しました',
-      'DELETE_ERROR',
-      error
-    );
+    throw wrapError(error, ErrorCodes.DELETE_ERROR, 'セットの削除中にエラーが発生しました', { setName: name });
   }
 }
 
@@ -118,6 +122,13 @@ export function registerDeleteCommand(program: Command): void {
     .description('保存済みセットを削除')
     .option('-f, --force', '確認なしで削除')
     .action(async (name: string, options: DeleteOptions) => {
-      await executeDeleteCommand(name, options);
+      const globalOptions = program.opts();
+      options.verbose = globalOptions.verbose || false;
+      
+      try {
+        await executeDeleteCommand(name, options);
+      } catch (error) {
+        await handleError(error, ErrorCodes.DELETE_ERROR);
+      }
     });
 }
