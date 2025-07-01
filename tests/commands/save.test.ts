@@ -31,7 +31,8 @@ describe('saveコマンド', () => {
     vi.clearAllMocks();
     
     // デフォルトのモック設定
-    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.claudy');
+    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.config/claudy');
+    mockPathUtils.getProjectConfigDir.mockReturnValue('/home/user/.config/claudy/projects/abcdef123456');
   });
 
   describe('executeSaveCommand', () => {
@@ -155,15 +156,15 @@ describe('saveコマンド', () => {
 
       await executeSaveCommand('new-set', { verbose: false, all: true });
 
-      expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/user/.claudy/new-set');
+      expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/user/.config/claudy/projects/abcdef123456/new-set');
       expect(mockFs.copy).toHaveBeenCalledTimes(2);
       expect(mockFs.copy).toHaveBeenCalledWith(
         expect.stringContaining('CLAUDE.md'),
-        '/home/user/.claudy/new-set/CLAUDE.md',
+        '/home/user/.config/claudy/projects/abcdef123456/new-set/CLAUDE.md',
         { overwrite: true }
       );
       expect(mockLogger.success).toHaveBeenCalledWith('✓ 2個のファイルを保存しました');
-      expect(mockLogger.info).toHaveBeenCalledWith('保存先: /home/user/.claudy/new-set');
+      expect(mockLogger.info).toHaveBeenCalledWith('保存先: /home/user/.config/claudy/projects/abcdef123456/new-set');
     });
 
     it('ディレクトリ作成に失敗した場合、適切にエラーハンドリングする（--allオプション）', async () => {
@@ -206,7 +207,7 @@ describe('saveコマンド', () => {
       await executeSaveCommand('test-set', { verbose: true, all: true });
 
       expect(mockLogger.setVerbose).toHaveBeenCalledWith(true);
-      expect(mockLogger.debug).toHaveBeenCalledWith('保存先: /home/user/.claudy/test-set');
+      expect(mockLogger.debug).toHaveBeenCalledWith('保存先: /home/user/.config/claudy/projects/abcdef123456/test-set');
       expect(mockLogger.debug).toHaveBeenCalledWith('見つかったファイル: CLAUDE.md');
     });
 

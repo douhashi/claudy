@@ -33,7 +33,8 @@ describe('loadコマンド', () => {
     vi.clearAllMocks();
     
     // デフォルトのモック設定
-    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.claudy');
+    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.config/claudy');
+    mockPathUtils.getProjectConfigDir.mockReturnValue('/home/user/.config/claudy/projects/abcdef123456');
     vi.spyOn(process, 'cwd').mockReturnValue('/project');
   });
 
@@ -59,13 +60,11 @@ describe('loadコマンド', () => {
         return Promise.reject(error);
       });
 
-      await expect(executeLoadCommand('nonexistent', { verbose: false })).rejects.toThrow(
-        new ClaudyError(
-          'セット "nonexistent" が見つかりません',
-          ErrorCodes.SET_NOT_FOUND,
-          { setName: 'nonexistent', path: '/home/user/.claudy/nonexistent' }
-        )
-      );
+      await expect(executeLoadCommand('nonexistent', { verbose: false })).rejects.toMatchObject({
+        message: 'セット "nonexistent" が見つかりません',
+        code: ErrorCodes.SET_NOT_FOUND,
+        details: { setName: 'nonexistent', path: '/home/user/.config/claudy/projects/abcdef123456/nonexistent' }
+      });
     });
 
     it('展開するファイルを正しく取得する', async () => {
@@ -73,7 +72,7 @@ describe('loadコマンド', () => {
       vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         // セットディレクトリは存在する
-        if (pathStr.includes('.claudy/test-set')) {
+        if (pathStr.includes('projects/abcdef123456/test-set')) {
           return Promise.resolve({ isDirectory: () => true } as any);
         }
         // それ以外のファイルは存在しない（ENOENTエラー）
@@ -92,10 +91,10 @@ describe('loadコマンド', () => {
       await executeLoadCommand('test-set', { verbose: false });
 
       expect(glob).toHaveBeenCalledWith('CLAUDE.md', expect.objectContaining({
-        cwd: '/home/user/.claudy/test-set'
+        cwd: '/home/user/.config/claudy/projects/abcdef123456/test-set'
       }));
       expect(glob).toHaveBeenCalledWith('.claude/**/*.md', expect.objectContaining({
-        cwd: '/home/user/.claudy/test-set'
+        cwd: '/home/user/.config/claudy/projects/abcdef123456/test-set'
       }));
       expect(copy).toHaveBeenCalledTimes(3);
     });
@@ -103,7 +102,7 @@ describe('loadコマンド', () => {
     it('既存ファイルとの衝突を検出する', async () => {
       vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
-        if (pathStr === '/home/user/.claudy/test-set' || 
+        if (pathStr === '/home/user/.config/claudy/projects/abcdef123456/test-set' || 
             pathStr === '/project/CLAUDE.md' ||
             pathStr.includes('test-set')) {
           return Promise.resolve({ isDirectory: () => pathStr.includes('test-set') } as any);
@@ -128,7 +127,7 @@ describe('loadコマンド', () => {
     it('forceオプションで既存ファイルを強制上書きする', async () => {
       vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
-        if (pathStr === '/home/user/.claudy/test-set' || 
+        if (pathStr === '/home/user/.config/claudy/projects/abcdef123456/test-set' || 
             pathStr === '/project/CLAUDE.md' ||
             pathStr.includes('test-set')) {
           return Promise.resolve({ isDirectory: () => pathStr.includes('test-set') } as any);
@@ -152,7 +151,7 @@ describe('loadコマンド', () => {
     it('バックアップオプションを選択した場合、.bakファイルを作成する', async () => {
       vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
-        if (pathStr === '/home/user/.claudy/test-set' || 
+        if (pathStr === '/home/user/.config/claudy/projects/abcdef123456/test-set' || 
             pathStr === '/project/CLAUDE.md' ||
             pathStr.includes('test-set')) {
           return Promise.resolve({ isDirectory: () => pathStr.includes('test-set') } as any);
@@ -179,7 +178,7 @@ describe('loadコマンド', () => {
     it('上書きオプションを選択した場合、バックアップなしで展開する', async () => {
       vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
-        if (pathStr === '/home/user/.claudy/test-set' || 
+        if (pathStr === '/home/user/.config/claudy/projects/abcdef123456/test-set' || 
             pathStr === '/project/CLAUDE.md' ||
             pathStr.includes('test-set')) {
           return Promise.resolve({ isDirectory: () => pathStr.includes('test-set') } as any);
@@ -204,7 +203,7 @@ describe('loadコマンド', () => {
       vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         // セットディレクトリは存在する
-        if (pathStr.includes('.claudy/test-set')) {
+        if (pathStr.includes('projects/abcdef123456/test-set')) {
           return Promise.resolve({ isDirectory: () => true } as any);
         }
         // 現在のディレクトリのファイルは存在しない
@@ -240,7 +239,7 @@ describe('loadコマンド', () => {
       vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         // セットディレクトリは存在する
-        if (pathStr.includes('.claudy/test-set')) {
+        if (pathStr.includes('projects/abcdef123456/test-set')) {
           return Promise.resolve({ isDirectory: () => true } as any);
         }
         // 現在のディレクトリのファイルは存在しない
@@ -267,7 +266,7 @@ describe('loadコマンド', () => {
       vi.mocked(stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         // セットディレクトリは存在する
-        if (pathStr.includes('.claudy/test-set')) {
+        if (pathStr.includes('projects/abcdef123456/test-set')) {
           return Promise.resolve({ isDirectory: () => true } as any);
         }
         // 現在のディレクトリのファイルは存在しない
@@ -285,7 +284,7 @@ describe('loadコマンド', () => {
       await executeLoadCommand('test-set', { verbose: false });
 
       expect(copy).toHaveBeenCalledWith(
-        '/home/user/.claudy/test-set/.claude/commands/subdir/deep.md',
+        '/home/user/.config/claudy/projects/abcdef123456/test-set/.claude/commands/subdir/deep.md',
         '/project/.claude/commands/subdir/deep.md',
         expect.objectContaining({
           overwrite: true,

@@ -99,5 +99,5 @@ export function resolvePath(inputPath: string): string {
 }
 
 export function normalizePathSeparators(inputPath: string): string {
-  return inputPath.split(path.sep).join('/');
+  return inputPath.replace(/\\/g, '/');
 }

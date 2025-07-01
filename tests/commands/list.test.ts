@@ -27,7 +27,8 @@ describe('listコマンド', () => {
     });
     
     // デフォルトのモック設定
-    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.claudy');
+    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.config/claudy');
+    mockPathUtils.getProjectConfigDir.mockReturnValue('/home/user/.config/claudy/projects/abcdef123456');
   });
 
   afterEach(() => {
@@ -99,11 +100,11 @@ describe('listコマンド', () => {
         }
         
         if (options?.withFileTypes) {
-          if (pathStr === '/home/user/.claudy') {
+          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456') {
             return Promise.resolve(mockSets as any);
           }
           // セット内のファイル（簡略化）
-          if (pathStr.includes('/home/user/.claudy/')) {
+          if (pathStr.includes('/home/user/.config/claudy/projects/abcdef123456/')) {
             return Promise.resolve([
               { name: 'CLAUDE.md', isDirectory: () => false, isFile: () => true },
             ] as any);
@@ -152,16 +153,16 @@ describe('listコマンド', () => {
         }
         
         if (options?.withFileTypes) {
-          if (pathStr === '/home/user/.claudy') {
+          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456') {
             return Promise.resolve(mockSets as any);
           }
-          if (pathStr === '/home/user/.claudy/test-set') {
+          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456/test-set') {
             return Promise.resolve([
               { name: 'CLAUDE.md', isDirectory: () => false, isFile: () => true },
               { name: '.claude', isDirectory: () => true, isFile: () => false },
             ] as any);
           }
-          if (pathStr === '/home/user/.claudy/test-set/.claude') {
+          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456/test-set/.claude') {
             return Promise.resolve([
               { name: 'commands', isDirectory: () => true, isFile: () => false },
             ] as any);
@@ -213,7 +214,7 @@ describe('listコマンド', () => {
         }
         
         if (options?.withFileTypes) {
-          if (pathStr === '/home/user/.claudy') {
+          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456') {
             return Promise.resolve(mockSets as any);
           }
           return Promise.resolve([
