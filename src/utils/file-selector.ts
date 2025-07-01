@@ -177,8 +177,9 @@ export async function selectFilesInteractively(
     message: '保存するファイルを選択してください (スペースで選択/解除):',
     choices,
     pageSize: 15,
-    validate: (input: any): boolean | string => {
-      if (!input || input.length === 0) {
+    validate: (input: unknown): boolean | string => {
+      const selectedItems = input as string[];
+      if (!selectedItems || selectedItems.length === 0) {
         return '少なくとも1つのファイルを選択してください';
       }
       return true;

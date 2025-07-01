@@ -144,7 +144,7 @@ describe('file-selector', () => {
       
       mockInquirer.prompt.mockResolvedValue({
         selectedFiles: ['project:CLAUDE.md', 'user:.claude/CLAUDE.md']
-      } as any);
+      });
       
       const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
       
@@ -170,7 +170,7 @@ describe('file-selector', () => {
     });
     
     it('should handle empty file selection', async () => {
-      mockInquirer.prompt.mockResolvedValue({ selectedFiles: [] } as any);
+      mockInquirer.prompt.mockResolvedValue({ selectedFiles: [] });
       
       await expect(selectFilesInteractively([], [], homeDir))
         .rejects.toThrow('Claude関連ファイルが見つかりませんでした');
@@ -181,8 +181,8 @@ describe('file-selector', () => {
       const userFiles: string[] = [];
       
       // @ts-expect-error - Mocking inquirer prompt for testing
-      mockInquirer.prompt.mockImplementation(async (questions: any) => {
-        const question = questions;
+      mockInquirer.prompt.mockImplementation(async (questions: unknown) => {
+        const question = questions as { validate: (input: unknown) => boolean | string };
         const validateResult = question.validate([]);
         expect(validateResult).toBe('少なくとも1つのファイルを選択してください');
         
@@ -214,7 +214,7 @@ describe('file-selector', () => {
       // Mock selectFilesInteractively
       mockInquirer.prompt.mockResolvedValue({
         selectedFiles: ['project:CLAUDE.md']
-      } as any);
+      });
       
       const results = await performFileSelection();
       
