@@ -19,7 +19,7 @@ vi.mock('fs-extra');
 vi.mock('inquirer');
 vi.mock('../../src/utils/logger');
 vi.mock('../../src/utils/reference-parser', () => ({
-  collectReferences: vi.fn().mockResolvedValue([]),
+  collectReferences: vi.fn(() => Promise.resolve([])),
 }));
 
 const mockGlob = vi.mocked(glob);
@@ -274,31 +274,22 @@ describe('file-selector', () => {
   });
   
   describe('performFileSelection', () => {
-    it.skip('should perform complete file selection flow', async () => {
-      // Mock findClaudeFiles
-      mockGlob.mockImplementation(async (pattern) => {
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
-        return [];
-      });
+    it('should perform complete file selection flow', async () => {
+      // 明示的にmocksをクリア
+      vi.clearAllMocks();
       
-      // Mock findUserClaudeFiles
-      mockFs.pathExists.mockResolvedValue(true);
-      mockGlob.mockImplementation(async (pattern, options) => {
-        if (options?.cwd === path.join(homeDir, '.claude')) {
-          return ['commands/custom.md'];
-        }
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
-        return [];
-      });
+      // プロジェクトファイルの検索で CLAUDE.md を返す
+      mockGlob
+        .mockResolvedValueOnce(['CLAUDE.md'])  // 1回目: プロジェクトの CLAUDE.md
+        .mockResolvedValueOnce([])            // 2回目: プロジェクトの CLAUDE.local.md
+        .mockResolvedValueOnce([])            // 3回目: プロジェクトの .claude/**/*.md
+        .mockResolvedValueOnce([]);           // 4回目: ユーザーの commands/**/*.md
       
-      // Mock selectFilesInteractively - group selection
-      mockInquirer.prompt.mockResolvedValue({
-        selection: 'custom'
-      }).mockResolvedValueOnce({
-        selection: 'custom'
-      }).mockResolvedValueOnce({
-        selectedFiles: ['project:CLAUDE.md']
-      });
+      // ユーザーファイルは存在しない
+      mockFs.pathExists.mockResolvedValue(false);
+      
+      // プロジェクトファイルのみを選択
+      mockInquirer.prompt.mockResolvedValue({ selection: 'project' });
       
       const results = await performFileSelection();
       
