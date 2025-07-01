@@ -34,90 +34,108 @@ export function registerLoadCommand(program: Command): void {
   - 上書き
   - キャンセル`)
     .action(async (name: string, options: LoadOptions) => {
+      const globalOptions = program.opts();
+      options.verbose = globalOptions.verbose || false;
+      
       try {
-        const globalOptions = program.opts();
-        logger.setVerbose(globalOptions.verbose || false);
-
-        await loadSet(name, options);
+        await executeLoadCommand(name, options);
       } catch (error) {
-        await handleError(error, ErrorCodes.LOAD_ERROR, '設定セットの読み込み中にエラーが発生しました');
+        await handleError(error, ErrorCodes.LOAD_ERROR);
       }
     });
 }
 
-async function loadSet(name: string, options: LoadOptions): Promise<void> {
-  const claudyDir = getClaudyDir();
-  const setDir = path.join(claudyDir, name);
-
-  // セットの存在確認
+export async function executeLoadCommand(name: string, options: LoadOptions): Promise<void> {
   try {
-    await stat(setDir);
-  } catch (error) {
-    const systemError = error as NodeJS.ErrnoException;
-    if (systemError.code === 'ENOENT') {
+    logger.setVerbose(options.verbose || false);
+    
+    // セット名のバリデーション
+    if (!name || name.trim().length === 0) {
       throw new ClaudyError(
-        `設定セット "${name}" が見つかりません`,
-        ErrorCodes.SET_NOT_FOUND,
-        { setName: name, path: setDir }
+        ErrorMessages[ErrorCodes.INVALID_SET_NAME],
+        ErrorCodes.INVALID_SET_NAME,
+        { setName: name }
       );
     }
-    throw wrapError(error, ErrorCodes.FILE_READ_ERROR, undefined, { path: setDir });
-  }
+    
+    const claudyDir = getClaudyDir();
+    const setDir = path.join(claudyDir, name);
 
-  logger.info(`設定セット "${name}" を展開します`);
-
-  // 展開対象ファイルの取得
-  const files = await getSetFiles(setDir);
-  logger.debug(`展開対象ファイル数: ${files.length}`);
-
-  // 既存ファイルとの衝突チェック
-  const conflicts = await checkConflicts(files);
-  
-  if (conflicts.length > 0 && !options.force) {
-    logger.warn('以下のファイルが既に存在します:');
-    conflicts.forEach(file => {
-      logger.warn(`  - ${file}`);
-    });
-
-    const answer = await inquirer.prompt<ConflictAction>([
-      {
-        type: 'list',
-        name: 'action',
-        message: '既存ファイルをどのように処理しますか？',
-        choices: [
-          { name: 'バックアップを作成して展開', value: 'backup' },
-          { name: '上書きして展開', value: 'overwrite' },
-          { name: 'キャンセル', value: 'cancel' }
-        ],
-        default: 'backup'
+    // セットの存在確認
+    try {
+      await stat(setDir);
+    } catch (error) {
+      const systemError = error as NodeJS.ErrnoException;
+      if (systemError.code === 'ENOENT') {
+        throw new ClaudyError(
+          `セット "${name}" が見つかりません`,
+          ErrorCodes.SET_NOT_FOUND,
+          { setName: name, path: setDir }
+        );
       }
-    ]);
-
-    if (answer.action === 'cancel') {
-      logger.info('展開をキャンセルしました');
-      return;
+      throw wrapError(error, ErrorCodes.FILE_READ_ERROR, undefined, { path: setDir });
     }
 
-    if (answer.action === 'backup') {
-      await createBackups(conflicts);
+    logger.info(`設定セット "${name}" を展開します`);
+
+    // 展開対象ファイルの取得
+    const files = await getSetFiles(setDir);
+    logger.debug(`展開対象ファイル数: ${files.length}`);
+
+    // 既存ファイルとの衝突チェック
+    const conflicts = await checkConflicts(files);
+    
+    if (conflicts.length > 0 && !options.force) {
+      logger.warn('以下のファイルが既に存在します:');
+      conflicts.forEach(file => {
+        logger.warn(`  - ${file}`);
+      });
+
+      const answer = await inquirer.prompt<ConflictAction>([
+        {
+          type: 'list',
+          name: 'action',
+          message: '既存ファイルをどのように処理しますか？',
+          choices: [
+            { name: 'バックアップを作成して展開', value: 'backup' },
+            { name: '上書きして展開', value: 'overwrite' },
+            { name: 'キャンセル', value: 'cancel' }
+          ],
+          default: 'backup'
+        }
+      ]);
+
+      if (answer.action === 'cancel') {
+        logger.info('展開をキャンセルしました');
+        return;
+      }
+
+      if (answer.action === 'backup') {
+        await createBackups(conflicts);
+      }
     }
-  }
 
-  // ファイルの展開
-  await expandFiles(files, setDir);
+    // ファイルの展開
+    await expandFiles(files, setDir);
 
-  // 結果の表示
-  logger.success(`✓ 設定セット "${name}" の展開が完了しました`);
-  logger.info(`展開されたファイル:`);
-  files.forEach(file => {
-    logger.info(`  - ${file}`);
-  });
-  
-  if (conflicts.length > 0) {
-    logger.info('\nバックアップファイル:');
-    conflicts.forEach(file => {
-      logger.info(`  - ${file}.bak`);
+    // 結果の表示
+    logger.success(`✓ セット "${name}" の展開が完了しました`);
+    logger.info(`展開されたファイル:`);
+    files.forEach(file => {
+      logger.info(`  - ${file}`);
     });
+    
+    if (conflicts.length > 0) {
+      logger.info('\nバックアップファイル:');
+      conflicts.forEach(file => {
+        logger.info(`  - ${file}.bak`);
+      });
+    }
+  } catch (error) {
+    if (error instanceof ClaudyError) {
+      throw error;
+    }
+    throw wrapError(error, ErrorCodes.LOAD_ERROR, '設定セットの読み込み中にエラーが発生しました', { setName: name });
   }
 }
 

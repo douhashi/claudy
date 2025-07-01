@@ -108,7 +108,7 @@ describe('saveコマンド統合テスト', () => {
       // 何もファイルを作成しない
 
       await expect(executeSaveCommand('test-set', {})).rejects.toThrow(
-        'Claude設定ファイルが見つかりませんでした'
+        '保存対象のファイルが見つかりません。'
       );
     });
 
@@ -120,7 +120,7 @@ describe('saveコマンド統合テスト', () => {
       await fs.writeFile(path.join(testDir, 'other', 'test.md'), '# Other\n');
 
       await expect(executeSaveCommand('test-set', {})).rejects.toThrow(
-        'Claude設定ファイルが見つかりませんでした'
+        '保存対象のファイルが見つかりません。'
       );
     });
   });

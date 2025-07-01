@@ -7,6 +7,7 @@ export const ErrorCodes = {
   INVALID_PROFILE_NAME: 'VAL_INVALID_PROFILE_NAME',
   INVALID_PATH: 'VAL_INVALID_PATH',
   INVALID_ARGUMENT: 'VAL_INVALID_ARGUMENT',
+  RESERVED_NAME: 'VAL_RESERVED_NAME',
 
   // リソース存在エラー (RES_xxx)
   SET_NOT_FOUND: 'RES_SET_NOT_FOUND',
@@ -15,6 +16,7 @@ export const ErrorCodes = {
   DIR_NOT_FOUND: 'RES_DIR_NOT_FOUND',
   HOME_DIR_NOT_FOUND: 'RES_HOME_DIR_NOT_FOUND',
   NO_FILES_FOUND: 'RES_NO_FILES_FOUND',
+  NO_CONFIG_FILES: 'RES_NO_CONFIG_FILES',
 
   // 権限エラー (PERM_xxx)
   PERMISSION_DENIED: 'PERM_DENIED',
@@ -75,6 +77,7 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCodes.INVALID_PROFILE_NAME]: 'プロファイル名が無効です。',
   [ErrorCodes.INVALID_PATH]: '指定されたパスが無効です。',
   [ErrorCodes.INVALID_ARGUMENT]: '引数が無効です。',
+  [ErrorCodes.RESERVED_NAME]: '予約語は使用できません。',
 
   // リソース存在エラー
   [ErrorCodes.SET_NOT_FOUND]: '指定されたセットが見つかりません。',
@@ -83,6 +86,7 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCodes.DIR_NOT_FOUND]: 'ディレクトリが見つかりません。',
   [ErrorCodes.HOME_DIR_NOT_FOUND]: 'ホームディレクトリが見つかりません。',
   [ErrorCodes.NO_FILES_FOUND]: '保存対象のファイルが見つかりません。',
+  [ErrorCodes.NO_CONFIG_FILES]: '設定ファイルが見つかりません。',
 
   // 権限エラー
   [ErrorCodes.PERMISSION_DENIED]: 'アクセス権限がありません。',

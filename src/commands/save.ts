@@ -24,7 +24,7 @@ function validateSetName(name: string): void {
   
   if (!name || name.trim().length === 0) {
     throw new ClaudyError(
-      'セット名が指定されていません',
+      ErrorMessages[ErrorCodes.INVALID_SET_NAME],
       ErrorCodes.INVALID_SET_NAME,
       { setName: name }
     );
@@ -43,6 +43,14 @@ function validateSetName(name: string): void {
       'セット名は255文字以内で指定してください',
       ErrorCodes.INVALID_SET_NAME,
       { setName: name, length: name.length }
+    );
+  }
+  
+  if (name === 'profiles') {
+    throw new ClaudyError(
+      '"profiles" は予約されているため使用できません',
+      ErrorCodes.RESERVED_NAME,
+      { setName: name }
     );
   }
 }
