@@ -4,6 +4,8 @@
 
 claudyは、Claude AIの設定ファイル（CLAUDE.md、.claude/commands/**/*.md）を管理するためのNode.jsベースのCLIツールです。このドキュメントでは、claudyのアーキテクチャ設計と実装方針について説明します。
 
+> **Note**: このドキュメントは v0.1.0 時点の実装を反映しています（最終更新: 2025-07-01）
+
 ## プロジェクト構造
 
 ```
@@ -13,22 +15,33 @@ claudy/
 ├── src/                   # TypeScriptソースコード
 │   ├── index.ts          # メインエントリーポイント
 │   ├── commands/         # コマンド実装
-│   │   ├── init.ts      # 初期化コマンド
-│   │   ├── add.ts       # 設定追加コマンド
+│   │   ├── save.ts      # 設定保存コマンド
+│   │   ├── load.ts      # 設定復元コマンド
 │   │   ├── list.ts      # 設定一覧コマンド
-│   │   ├── remove.ts    # 設定削除コマンド
-│   │   └── sync.ts      # 設定同期コマンド
+│   │   ├── delete.ts    # 設定削除コマンド
+│   │   └── migrate.ts   # 設定移行コマンド
 │   ├── utils/            # ユーティリティ関数
 │   │   ├── file.ts      # ファイル操作
 │   │   ├── path.ts      # パス処理
 │   │   ├── config.ts    # 設定管理
-│   │   └── logger.ts    # ロギング
-│   ├── types/            # TypeScript型定義
-│   │   └── index.ts
-│   └── templates/        # テンプレートファイル
-├── dist/                 # コンパイル済みJavaScript
+│   │   ├── logger.ts    # ロギング
+│   │   ├── errorHandler.ts  # エラーハンドリング
+│   │   ├── file-selector.ts # ファイル選択UI
+│   │   └── reference-parser.ts # 参照パーサー
+│   └── types/            # TypeScript型定義
+│       ├── index.ts      # 共通型定義
+│       └── errors.ts     # エラー型定義
 ├── tests/                # テストファイル
+│   ├── commands/         # コマンドのテスト
+│   ├── utils/            # ユーティリティのテスト
+│   ├── integration/      # 統合テスト
+│   └── __mocks__/        # モック定義
 ├── docs/                 # ドキュメント
+│   └── development/      # 開発ドキュメント
+├── dist/                 # コンパイル済みJavaScript
+├── eslint.config.js      # ESLint設定
+├── vitest.config.ts      # Vitestテスト設定
+├── tsconfig.json         # TypeScript設定
 └── package.json          # プロジェクト設定
 ```
 
@@ -43,10 +56,10 @@ claudy/
 
 ### 開発ツール
 
-- **ESLint**: コード品質の保証
-- **Prettier**: コードフォーマット
-- **Jest**: ユニットテストフレームワーク
-- **ts-node**: 開発時のTypeScript実行
+- **ESLint** (v9+): コード品質の保証
+- **Prettier** (v3+): コードフォーマット
+- **Vitest** (v3+): 高速なユニットテストフレームワーク
+- **ts-node** (v10+): 開発時のTypeScript実行
 
 ### ユーティリティライブラリ
 
@@ -88,14 +101,35 @@ interface Profile {
 明確で有用なエラーメッセージ：
 
 ```typescript
-class ClaudyError extends Error {
+// エラークラスの定義
+export class ClaudyError extends Error {
   constructor(
     message: string,
-    public code: string,
-    public details?: unknown
+    public readonly code: string,
+    public readonly details?: unknown
   ) {
     super(message);
+    this.name = 'ClaudyError';
   }
+}
+
+// エラーコードの定義
+export enum ErrorCodes {
+  FILE_NOT_FOUND = 'FILE_NOT_FOUND',
+  INVALID_SET_NAME = 'INVALID_SET_NAME',
+  PERMISSION_DENIED = 'PERMISSION_DENIED',
+  CONFIG_NOT_FOUND = 'CONFIG_NOT_FOUND',
+  // ...
+}
+
+// エラーハンドリング関数
+export async function handleError(error: Error): Promise<never> {
+  if (error instanceof ClaudyError) {
+    logger.error(error.message, error.code);
+  } else {
+    logger.error('予期しないエラーが発生しました', error);
+  }
+  process.exit(1);
 }
 ```
 
@@ -112,41 +146,53 @@ class ClaudyError extends Error {
 Commanderを使用したコマンド定義：
 
 ```typescript
+const program = new Command();
+
 program
   .name('claudy')
   .description('Claude AI設定ファイル管理ツール')
   .version(version);
 
-program
-  .command('init')
-  .description('claudy設定を初期化')
-  .action(initCommand);
+// コマンドの登録
+registerSaveCommand(program);
+registerLoadCommand(program);
+registerListCommand(program);
+registerDeleteCommand(program);
+registerMigrateCommand(program);
 ```
 
 ### ファイル管理システム
 
 設定ファイルの読み書きと管理：
 
-- 設定ディレクトリ: `~/.claudy/`
+- 設定ディレクトリ: `~/.config/claudy/` (XDG Base Directory準拠)
 - プロファイル管理: 複数の設定セットをサポート
 - テンプレート機能: 標準的な設定テンプレートを提供
 
 ### コマンド実装パターン
 
-各コマンドは以下の構造に従います：
+各コマンドは独立したモジュールとして実装されます：
 
 ```typescript
-export interface CommandOptions {
+// コマンドオプションの型定義
+interface SaveOptions {
   verbose?: boolean;
-  profile?: string;
+  force?: boolean;
+  interactive?: boolean;
+  all?: boolean;
 }
 
-export async function executeCommand(
-  options: CommandOptions
-): Promise<void> {
-  // バリデーション
-  // 実行
-  // 結果出力
+// コマンド登録関数
+export function registerSaveCommand(program: Command): void {
+  program
+    .command('save <set-name>')
+    .description('現在のCLAUDE.mdとコマンド設定を保存')
+    .option('-f, --force', '上書き確認をスキップ')
+    .option('-i, --interactive', '対話モードでファイル選択')
+    .option('-a, --all', 'すべてのファイルを保存')
+    .action(async (setName: string, options: SaveOptions) => {
+      await executeSaveCommand(setName, options);
+    });
 }
 ```
 
@@ -161,14 +207,14 @@ export async function executeCommand(
 
 ### グローバル設定
 
-`~/.claudy/config.json`:
+`~/.config/claudy/config.json`:
 
 ```json
 {
   "defaultProfile": "default",
   "profiles": {
     "default": {
-      "path": "~/.claudy/profiles/default"
+      "path": "~/.config/claudy/profiles/default"
     }
   }
 }
@@ -179,12 +225,20 @@ export async function executeCommand(
 各プロファイルは独立したディレクトリ：
 
 ```
-~/.claudy/profiles/[profile-name]/
+~/.config/claudy/profiles/[profile-name]/
 ├── CLAUDE.md
 └── .claude/
     └── commands/
         └── *.md
 ```
+
+### コマンド一覧
+
+- **save**: 現在のCLAUDE.mdとコマンド設定を保存
+- **load**: 保存された設定を現在のディレクトリに復元
+- **list**: 保存されたプロファイルの一覧表示
+- **delete**: 指定したプロファイルを削除
+- **migrate**: 旧形式から新形式への設定移行
 
 ## セキュリティ考慮事項
 
@@ -200,15 +254,43 @@ export async function executeCommand(
 
 ## テスト戦略
 
+### テストフレームワーク
+
+Vitestを使用した高速なテスト実行：
+
+```json
+{
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:ui": "vitest --ui"
+  }
+}
+```
+
 ### ユニットテスト
 
 - 各ユーティリティ関数の個別テスト
 - モックを使用したファイルシステム操作のテスト
+- コマンドの単体テスト
 
 ### 統合テスト
 
 - コマンドの実行フローテスト
 - 実際のファイルシステムを使用したE2Eテスト
+
+```typescript
+// テストファイルの例 (save.test.ts)
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { executeSaveCommand } from '../commands/save';
+
+describe('saveコマンド', () => {
+  it('正常に設定を保存できること', async () => {
+    // テスト実装
+  });
+});
+```
 
 ### テストカバレッジ目標
 
