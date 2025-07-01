@@ -138,34 +138,84 @@ describe('file-selector', () => {
   });
   
   describe('selectFilesInteractively', () => {
-    it('should create proper choices for interactive selection', async () => {
+    it('should use group selection when both project and user files exist', async () => {
       const projectFiles = ['CLAUDE.md', '.claude/commands/test.md'];
       const userFiles = ['.claude/CLAUDE.md'];
       
-      mockInquirer.prompt.mockResolvedValue({
-        selectedFiles: ['project:CLAUDE.md', 'user:.claude/CLAUDE.md']
-      });
+      // Mock group selection - select both
+      mockInquirer.prompt
+        .mockResolvedValueOnce({ selection: 'both' });
       
       const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
       
       expect(mockInquirer.prompt).toHaveBeenCalledWith({
-        type: 'checkbox',
-        name: 'selectedFiles',
-        message: '保存するファイルを選択してください (スペースで選択/解除):',
+        type: 'list',
+        name: 'selection',
+        message: 'ファイルの選択方法を選んでください:',
         choices: expect.arrayContaining([
-          expect.objectContaining({ name: '--- プロジェクトレベル ---' }),
-          expect.objectContaining({ name: './CLAUDE.md', value: 'project:CLAUDE.md' }),
-          expect.objectContaining({ name: './.claude/commands/test.md', value: 'project:.claude/commands/test.md' }),
-          expect.objectContaining({ name: '--- ユーザーレベル ---' }),
-          expect.objectContaining({ name: '~/.claude/CLAUDE.md', value: 'user:.claude/CLAUDE.md' })
+          expect.objectContaining({ name: '両方のファイル（プロジェクトレベル + ユーザーレベル）', value: 'both' }),
+          expect.objectContaining({ name: 'プロジェクトレベルのファイルのみ', value: 'project' }),
+          expect.objectContaining({ name: 'ユーザーレベルのファイルのみ', value: 'user' }),
+          expect.objectContaining({ name: 'カスタム選択（個別にファイルを選択）', value: 'custom' })
         ]),
-        pageSize: 15,
-        validate: expect.any(Function)
+        default: 'both'
       });
+      
+      expect(results).toEqual([
+        { files: projectFiles, baseDir: testCwd },
+        { files: userFiles, baseDir: homeDir }
+      ]);
+    });
+    
+    it('should allow custom selection with inquirer.Separator', async () => {
+      const projectFiles = ['CLAUDE.md', '.claude/commands/test.md'];
+      const userFiles = ['.claude/CLAUDE.md'];
+      
+      // Mock group selection - custom
+      mockInquirer.prompt
+        .mockResolvedValueOnce({ selection: 'custom' })
+        .mockResolvedValueOnce({
+          selectedFiles: ['project:CLAUDE.md', 'user:.claude/CLAUDE.md']
+        });
+      
+      const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
+      
+      // First call is group selection
+      expect(mockInquirer.prompt).toHaveBeenCalledTimes(2);
+      
+      // Second call should include separators
+      const secondCall = mockInquirer.prompt.mock.calls[1][0];
+      expect(secondCall.choices).toContainEqual(expect.any(inquirer.Separator));
       
       expect(results).toEqual([
         { files: ['CLAUDE.md'], baseDir: testCwd },
         { files: ['.claude/CLAUDE.md'], baseDir: homeDir }
+      ]);
+    });
+    
+    it('should select only project files when chosen', async () => {
+      const projectFiles = ['CLAUDE.md'];
+      const userFiles = ['.claude/CLAUDE.md'];
+      
+      mockInquirer.prompt.mockResolvedValueOnce({ selection: 'project' });
+      
+      const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
+      
+      expect(results).toEqual([
+        { files: projectFiles, baseDir: testCwd }
+      ]);
+    });
+    
+    it('should select only user files when chosen', async () => {
+      const projectFiles = ['CLAUDE.md'];
+      const userFiles = ['.claude/CLAUDE.md'];
+      
+      mockInquirer.prompt.mockResolvedValueOnce({ selection: 'user' });
+      
+      const results = await selectFilesInteractively(projectFiles, userFiles, homeDir);
+      
+      expect(results).toEqual([
+        { files: userFiles, baseDir: homeDir }
       ]);
     });
     
@@ -176,15 +226,25 @@ describe('file-selector', () => {
         .rejects.toThrow('Claude関連ファイルが見つかりませんでした');
     });
     
-    it('should validate at least one file is selected', async () => {
+    it('should validate at least one file is selected in custom mode', async () => {
       const projectFiles = ['CLAUDE.md'];
       const userFiles: string[] = [];
       
       // @ts-expect-error - Mocking inquirer prompt for testing
       mockInquirer.prompt.mockImplementation(async (questions: unknown) => {
-        const question = questions as { validate: (input: unknown) => boolean | string };
-        const validateResult = question.validate([]);
-        expect(validateResult).toBe('少なくとも1つのファイルを選択してください');
+        const question = questions as { 
+          name?: string;
+          validate?: (input: unknown) => boolean | string 
+        };
+        
+        if (question.name === 'selection') {
+          return { selection: 'custom' };
+        }
+        
+        if (question.validate) {
+          const validateResult = question.validate([]);
+          expect(validateResult).toBe('少なくとも1つのファイルを選択してください');
+        }
         
         return { selectedFiles: ['project:CLAUDE.md'] };
       });
@@ -211,8 +271,12 @@ describe('file-selector', () => {
         return [];
       });
       
-      // Mock selectFilesInteractively
+      // Mock selectFilesInteractively - group selection
       mockInquirer.prompt.mockResolvedValue({
+        selection: 'custom'
+      }).mockResolvedValueOnce({
+        selection: 'custom'
+      }).mockResolvedValueOnce({
         selectedFiles: ['project:CLAUDE.md']
       });
       

@@ -103,6 +103,47 @@ interface FileChoice {
   short?: string;
 }
 
+type GroupSelectionOption = 'both' | 'project' | 'user' | 'custom';
+
+/**
+ * グループ選択プロンプトを表示
+ * @param hasProjectFiles - プロジェクトファイルが存在するか
+ * @param hasUserFiles - ユーザーファイルが存在するか
+ * @returns 選択されたグループ
+ */
+async function selectGroup(hasProjectFiles: boolean, hasUserFiles: boolean): Promise<GroupSelectionOption> {
+  const choices: Array<{ name: string; value: GroupSelectionOption }> = [];
+  
+  if (hasProjectFiles && hasUserFiles) {
+    choices.push(
+      { name: '両方のファイル（プロジェクトレベル + ユーザーレベル）', value: 'both' },
+      { name: 'プロジェクトレベルのファイルのみ', value: 'project' },
+      { name: 'ユーザーレベルのファイルのみ', value: 'user' },
+      { name: 'カスタム選択（個別にファイルを選択）', value: 'custom' }
+    );
+  } else if (hasProjectFiles) {
+    choices.push(
+      { name: 'プロジェクトレベルのファイルをすべて選択', value: 'project' },
+      { name: 'カスタム選択（個別にファイルを選択）', value: 'custom' }
+    );
+  } else if (hasUserFiles) {
+    choices.push(
+      { name: 'ユーザーレベルのファイルをすべて選択', value: 'user' },
+      { name: 'カスタム選択（個別にファイルを選択）', value: 'custom' }
+    );
+  }
+  
+  const { selection } = await inquirer.prompt<{ selection: GroupSelectionOption }>({
+    type: 'list',
+    name: 'selection',
+    message: 'ファイルの選択方法を選んでください:',
+    choices,
+    default: hasProjectFiles && hasUserFiles ? 'both' : (hasProjectFiles ? 'project' : 'user'),
+  });
+  
+  return selection;
+}
+
 /**
  * インタラクティブにファイルを選択
  * @param projectFiles - プロジェクトレベルのファイル
@@ -115,17 +156,62 @@ export async function selectFilesInteractively(
   userFiles: string[],
   userBaseDir: string
 ): Promise<FileSelectionResult[]> {
-  const choices: FileChoice[] = [];
   const results: FileSelectionResult[] = [];
+  
+  if (projectFiles.length === 0 && userFiles.length === 0) {
+    throw new ClaudyError(
+      'Claude関連ファイルが見つかりませんでした',
+      ErrorCodes.NO_FILES_FOUND,
+      { searchDirs: [process.cwd(), userBaseDir] }
+    );
+  }
+  
+  // グループ選択
+  const groupSelection = await selectGroup(projectFiles.length > 0, userFiles.length > 0);
+  
+  // グループ選択に基づいて処理
+  if (groupSelection === 'both') {
+    // 両方のファイルを選択
+    if (projectFiles.length > 0) {
+      results.push({
+        files: projectFiles,
+        baseDir: process.cwd(),
+      });
+    }
+    if (userFiles.length > 0) {
+      results.push({
+        files: userFiles,
+        baseDir: userBaseDir,
+      });
+    }
+    
+    const totalFiles = projectFiles.length + userFiles.length;
+    logger.info(`✓ ${totalFiles}個のファイルを選択しました`);
+    return results;
+  } else if (groupSelection === 'project') {
+    // プロジェクトレベルのみ
+    results.push({
+      files: projectFiles,
+      baseDir: process.cwd(),
+    });
+    logger.info(`✓ ${projectFiles.length}個のプロジェクトレベルファイルを選択しました`);
+    return results;
+  } else if (groupSelection === 'user') {
+    // ユーザーレベルのみ
+    results.push({
+      files: userFiles,
+      baseDir: userBaseDir,
+    });
+    logger.info(`✓ ${userFiles.length}個のユーザーレベルファイルを選択しました`);
+    return results;
+  }
+  
+  // カスタム選択の場合
+  const choices: Array<FileChoice | typeof inquirer.Separator.prototype> = [];
   
   // プロジェクトレベルのファイル
   if (projectFiles.length > 0) {
-    choices.push({
-      name: '--- プロジェクトレベル ---',
-      value: 'project-header',
-      checked: false,
-      short: '',
-    });
+    choices.push(new inquirer.Separator('--- プロジェクトレベル ---'));
     
     for (const file of projectFiles) {
       choices.push({
@@ -139,20 +225,10 @@ export async function selectFilesInteractively(
   // ユーザーレベルのファイル
   if (userFiles.length > 0) {
     if (projectFiles.length > 0) {
-      choices.push({
-        name: '',
-        value: 'separator',
-        checked: false,
-        short: '',
-      });
+      choices.push(new inquirer.Separator(' '));
     }
     
-    choices.push({
-      name: '--- ユーザーレベル ---',
-      value: 'user-header',
-      checked: false,
-      short: '',
-    });
+    choices.push(new inquirer.Separator('--- ユーザーレベル ---'));
     
     for (const file of userFiles) {
       choices.push({
@@ -161,14 +237,6 @@ export async function selectFilesInteractively(
         checked: true,
       });
     }
-  }
-  
-  if (choices.length === 0) {
-    throw new ClaudyError(
-      'Claude関連ファイルが見つかりませんでした',
-      ErrorCodes.NO_FILES_FOUND,
-      { searchDirs: [process.cwd(), userBaseDir] }
-    );
   }
   
   const { selectedFiles } = await inquirer.prompt<{ selectedFiles: string[] }>({
@@ -211,6 +279,9 @@ export async function selectFilesInteractively(
       baseDir: userBaseDir,
     });
   }
+  
+  const totalFiles = selectedProjectFiles.length + selectedUserFiles.length;
+  logger.info(`✓ ${totalFiles}個のファイルを選択しました`);
   
   return results;
 }
