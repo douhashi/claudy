@@ -1,22 +1,23 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { executeSaveCommand } from '../../src/commands/save';
 import { ClaudyError } from '../../src/types';
 import { ErrorCodes } from '../../src/types/errors';
 
 // モックの設定
-jest.mock('../../src/utils/logger');
-jest.mock('fs-extra', () => ({
-  access: jest.fn(),
-  stat: jest.fn(),
-  ensureDir: jest.fn(),
-  copy: jest.fn(),
+vi.mock('../../src/utils/logger');
+vi.mock('fs-extra', () => ({
+  access: vi.fn(),
+  stat: vi.fn(),
+  ensureDir: vi.fn(),
+  copy: vi.fn(),
 }));
-jest.mock('../../src/utils/path');
-jest.mock('inquirer', () => ({
-  prompt: jest.fn(),
+vi.mock('../../src/utils/path');
+vi.mock('inquirer', () => ({
+  prompt: vi.fn(),
 }));
-jest.mock('glob');
-jest.mock('../../src/utils/file-selector', () => ({
-  performFileSelection: jest.fn(),
+vi.mock('glob');
+vi.mock('../../src/utils/file-selector', () => ({
+  performFileSelection: vi.fn(),
 }));
 
 // モジュールのインポート（モック後に行う）
@@ -27,12 +28,12 @@ import inquirer from 'inquirer';
 import { glob } from 'glob';
 import { performFileSelection } from '../../src/utils/file-selector';
 
-const mockLogger = logger as jest.Mocked<typeof logger>;
-const mockPathUtils = pathUtils as jest.Mocked<typeof pathUtils>;
+const mockLogger = vi.mocked(logger);
+const mockPathUtils = vi.mocked(pathUtils);
 
 describe('saveコマンド', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     
     // デフォルトのモック設定
     mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.claudy');
