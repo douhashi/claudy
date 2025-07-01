@@ -25,7 +25,8 @@ describe('deleteコマンド', () => {
     vi.clearAllMocks();
     
     // デフォルトのモック設定
-    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.claudy');
+    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.config/claudy');
+    mockPathUtils.getProjectConfigDir.mockReturnValue('/home/user/.config/claudy/projects/abcdef123456');
   });
 
   describe('executeDeleteCommand', () => {
@@ -48,7 +49,7 @@ describe('deleteコマンド', () => {
         new ClaudyError(
           'セット "nonexistent" が見つかりません',
           ErrorCodes.SET_NOT_FOUND,
-          { setName: 'nonexistent', path: '/home/user/.claudy/nonexistent' }
+          { setName: 'nonexistent', path: '/home/user/.config/claudy/projects/abcdef123456/nonexistent' }
         )
       );
     });
@@ -85,7 +86,7 @@ describe('deleteコマンド', () => {
         },
       ]);
 
-      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.claudy/test-set');
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/projects/abcdef123456/test-set');
       expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" を削除しました');
       expect(mockLogger.info).toHaveBeenCalledWith('\n現在のセット一覧を確認するには:');
       expect(mockLogger.info).toHaveBeenCalledWith('  $ claudy list');
@@ -101,7 +102,7 @@ describe('deleteコマンド', () => {
       await executeDeleteCommand('test-set', { verbose: false, force: true });
 
       expect(inquirer.prompt).not.toHaveBeenCalled();
-      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.claudy/test-set');
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/projects/abcdef123456/test-set');
       expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" を削除しました');
     });
 
@@ -118,7 +119,7 @@ describe('deleteコマンド', () => {
         executeDeleteCommand('test-set', { verbose: false, force: true })
       ).rejects.toThrow();
 
-      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.claudy/test-set');
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/projects/abcdef123456/test-set');
     });
 
     it('verboseモードで詳細ログを出力する', async () => {
@@ -134,7 +135,7 @@ describe('deleteコマンド', () => {
 
       expect(mockLogger.setVerbose).toHaveBeenCalledWith(true);
       expect(mockLogger.debug).toHaveBeenCalledWith('削除対象セット: test-set');
-      expect(mockLogger.debug).toHaveBeenCalledWith('セットパス: /home/user/.claudy/test-set');
+      expect(mockLogger.debug).toHaveBeenCalledWith('セットパス: /home/user/.config/claudy/projects/abcdef123456/test-set');
     });
 
     it('セットパスがファイルの場合、存在しないものとして扱う', async () => {
@@ -146,7 +147,7 @@ describe('deleteコマンド', () => {
         new ClaudyError(
           'セット "file-not-dir" が見つかりません',
           ErrorCodes.SET_NOT_FOUND,
-          { setName: 'file-not-dir', path: '/home/user/.claudy/file-not-dir' }
+          { setName: 'file-not-dir', path: '/home/user/.config/claudy/projects/abcdef123456/file-not-dir' }
         )
       );
     });

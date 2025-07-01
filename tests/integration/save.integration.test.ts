@@ -11,6 +11,7 @@ const testClaudyDir = path.join(testBaseDir, '.claudy-test');
 // utils/pathのモック
 vi.mock('../../src/utils/path', () => ({
   getClaudyDir: vi.fn(() => testClaudyDir),
+  getProjectConfigDir: vi.fn(() => testClaudyDir),
 }));
 
 // loggerのモック（実際の出力を抑制）
@@ -26,6 +27,9 @@ vi.mock('../../src/utils/logger', () => ({
 
 // inquirerのモック（統合テストでは確認プロンプトを避ける）
 vi.mock('inquirer');
+
+// file-selectorのモック（統合テストでは自動選択を避ける）
+vi.mock('../../src/utils/file-selector');
 
 // 実際のファイルシステムを使用する統合テスト
 describe('saveコマンド統合テスト', () => {

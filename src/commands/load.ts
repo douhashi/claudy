@@ -3,7 +3,7 @@ import path from 'path';
 import { stat, copy, rename, remove, ensureDir } from 'fs-extra';
 import inquirer from 'inquirer';
 import { logger } from '../utils/logger';
-import { getClaudyDir } from '../utils/path';
+import { getProjectConfigDir } from '../utils/path';
 import { ClaudyError } from '../types';
 import { glob } from 'glob';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
@@ -58,8 +58,10 @@ export async function executeLoadCommand(name: string, options: LoadOptions): Pr
       );
     }
     
-    const claudyDir = getClaudyDir();
-    const setDir = path.join(claudyDir, name);
+    // 現在のプロジェクトの設定ディレクトリから読み込み
+    const currentProjectPath = process.cwd();
+    const projectConfigDir = getProjectConfigDir(currentProjectPath);
+    const setDir = path.join(projectConfigDir, name);
 
     // セットの存在確認
     try {
