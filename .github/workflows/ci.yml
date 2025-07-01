@@ -25,12 +25,17 @@ jobs:
         cache: 'npm'
     
     - name: Check npm and node versions
+      shell: bash
       run: |
         echo "Node version: $(node --version)"
         echo "npm version: $(npm --version)"
         echo "Current directory: $(pwd)"
         echo "Files in directory:"
-        ls -la
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          dir
+        else
+          ls -la
+        fi
     
     - name: Install dependencies
       run: |
@@ -73,12 +78,17 @@ jobs:
         cache: 'npm'
     
     - name: Check npm and node versions
+      shell: bash
       run: |
         echo "Node version: $(node --version)"
         echo "npm version: $(npm --version)"
         echo "Current directory: $(pwd)"
         echo "Files in directory:"
-        ls -la
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          dir
+        else
+          ls -la
+        fi
     
     - name: Install dependencies
       run: |
