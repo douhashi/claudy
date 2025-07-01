@@ -1,0 +1,70 @@
+# Source files
+src/
+tests/
+
+# Configuration files
+.github/
+.vscode/
+.idea/
+.git/
+.gitignore
+.eslintrc.json
+.prettierrc
+jest.config.js
+tsconfig.json
+
+# Development files
+*.log
+*.tgz
+.env
+.env.*
+coverage/
+.nyc_output/
+
+# Documentation (except README.md)
+docs/
+CLAUDE.md
+.claude/
+
+# Build artifacts
+*.map
+*.ts
+!*.d.ts
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Test files
+__tests__/
+__mocks__/
+*.test.js
+*.spec.js
+
+# Temporary files
+tmp/
+temp/
+
+# GitHub specific
+.github/
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+
+# CI/CD
+.travis.yml
+.circleci/
+appveyor.yml
+
+# Package manager files
+yarn.lock
+pnpm-lock.yaml
+package-lock.json
+
+# Other
+.editorconfig
+.gitattributes

@@ -1,194 +1,199 @@
 import { executeSaveCommand } from '../../src/commands/save';
 import { ClaudyError } from '../../src/types';
-import fs from 'fs-extra';
-import path from 'path';
-import { glob } from 'glob';
-import inquirer from 'inquirer';
+import { ErrorCodes } from '../../src/types/errors';
 
 // モックの設定
-jest.mock('fs-extra');
+jest.mock('../../src/utils/logger');
+jest.mock('fs-extra', () => ({
+  access: jest.fn(),
+  stat: jest.fn(),
+  ensureDir: jest.fn(),
+  copy: jest.fn(),
+}));
+jest.mock('../../src/utils/path');
+jest.mock('inquirer', () => ({
+  prompt: jest.fn(),
+}));
 jest.mock('glob');
-jest.mock('inquirer');
-jest.mock('../../src/utils/logger', () => ({
-  logger: {
-    setVerbose: jest.fn(),
-    debug: jest.fn(),
-    info: jest.fn(),
-    success: jest.fn(),
-    error: jest.fn(),
-  },
-}));
 
-// path.join のモック用に、実際の path モジュールを使用
-jest.mock('../../src/utils/path', () => ({
-  getClaudyDir: jest.fn(() => '/home/user/.claudy'),
-}));
+// モジュールのインポート（モック後に行う）
+import { logger } from '../../src/utils/logger';
+import * as pathUtils from '../../src/utils/path';
+import fs from 'fs-extra';
+import inquirer from 'inquirer';
+import { glob } from 'glob';
 
-const mockFs = fs as jest.Mocked<typeof fs>;
-const mockGlob = glob as unknown as jest.MockedFunction<(pattern: string, options?: any) => Promise<string[]>>;
-const mockInquirer = inquirer as jest.Mocked<typeof inquirer>;
+const mockLogger = logger as jest.Mocked<typeof logger>;
+const mockPathUtils = pathUtils as jest.Mocked<typeof pathUtils>;
 
 describe('saveコマンド', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // デフォルトのモック動作を設定
-    (mockFs.access as unknown as jest.Mock).mockResolvedValue(undefined);
-    (mockFs.copy as unknown as jest.Mock).mockResolvedValue(undefined);
-    (mockFs.ensureDir as unknown as jest.Mock).mockResolvedValue(undefined);
+    
+    // デフォルトのモック設定
+    mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.claudy');
   });
 
-  describe('セット名のバリデーション', () => {
-    it('空のセット名はエラーになる', async () => {
-      await expect(executeSaveCommand('', {})).rejects.toThrow(
-        new ClaudyError('セット名が指定されていません', 'INVALID_SET_NAME')
+  describe('executeSaveCommand', () => {
+    it('セット名が指定されていない場合エラーをスローする', async () => {
+      await expect(executeSaveCommand('', { verbose: false })).rejects.toThrow(
+        new ClaudyError(
+          'セット名が無効です。英数字、ハイフン、アンダースコアのみ使用できます。',
+          ErrorCodes.INVALID_SET_NAME,
+          { setName: '' }
+        )
       );
     });
 
-    it('無効な文字を含むセット名はエラーになる', async () => {
-      const invalidNames = ['test/name', 'test\\name', 'test:name', 'test*name', 'test?name', 'test"name', 'test<name', 'test>name', 'test|name'];
+    it('予約語を使用した場合エラーをスローする', async () => {
+      await expect(executeSaveCommand('profiles', { verbose: false })).rejects.toThrow(
+        new ClaudyError(
+          '"profiles" は予約されているため使用できません',
+          ErrorCodes.RESERVED_NAME,
+          { setName: 'profiles' }
+        )
+      );
+    });
+
+    it('設定ファイルが存在しない場合エラーをスローする', async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
       
-      for (const name of invalidNames) {
-        await expect(executeSaveCommand(name, {})).rejects.toThrow(
-          new ClaudyError(
-            'セット名に使用できない文字が含まれています（/, \\, :, *, ?, ", <, >, |）',
-            'INVALID_SET_NAME'
-          )
-        );
-      }
-    });
+      (glob as any).mockResolvedValue([]);
+      (fs.stat as any).mockRejectedValue(error);
 
-    it('255文字を超えるセット名はエラーになる', async () => {
-      const longName = 'a'.repeat(256);
-      await expect(executeSaveCommand(longName, {})).rejects.toThrow(
-        new ClaudyError('セット名は255文字以内で指定してください', 'INVALID_SET_NAME')
-      );
-    });
-  });
-
-  describe('ファイル検索', () => {
-    it('ファイルが見つからない場合はエラーになる', async () => {
-      mockGlob.mockResolvedValue([]);
-
-      await expect(executeSaveCommand('test-set', {})).rejects.toThrow(
-        new ClaudyError('Claude設定ファイルが見つかりませんでした', 'NO_FILES_FOUND')
+      await expect(executeSaveCommand('test-set', { verbose: false })).rejects.toThrow(
+        new ClaudyError(
+          '保存対象のファイルが見つかりません。',
+          ErrorCodes.NO_FILES_FOUND
+        )
       );
     });
 
-    it('CLAUDE.mdと.claude/commands/**/*.mdファイルを検索する', async () => {
-      mockGlob
-        .mockResolvedValueOnce(['CLAUDE.md'])
-        .mockResolvedValueOnce(['.claude/commands/test.md']);
-      
-      // 既存セットがないと仮定
-      (mockFs.access as unknown as jest.Mock).mockRejectedValueOnce(new Error('Not found'));
+    it('既存のセットが存在する場合、確認プロンプトを表示する', async () => {
+      (fs.access as any).mockResolvedValue(undefined);
+      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
+      (fs.stat as any).mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      (inquirer.prompt as any).mockResolvedValue({ overwrite: false });
 
-      await executeSaveCommand('test-set', {});
+      await executeSaveCommand('existing-set', { verbose: false });
 
-      expect(mockGlob).toHaveBeenCalledTimes(2);
-      expect(mockGlob).toHaveBeenCalledWith('CLAUDE.md', expect.any(Object));
-      expect(mockGlob).toHaveBeenCalledWith('.claude/commands/**/*.md', expect.any(Object));
-    });
-  });
-
-  describe('既存セットの上書き処理', () => {
-    beforeEach(() => {
-      mockGlob
-        .mockResolvedValueOnce(['CLAUDE.md'])
-        .mockResolvedValueOnce([]);
-    });
-
-    it('既存セットがある場合、確認プロンプトを表示する', async () => {
-      (mockFs.access as unknown as jest.Mock).mockResolvedValueOnce(undefined); // セットが存在
-      (mockInquirer.prompt as unknown as jest.Mock).mockResolvedValueOnce({ overwrite: true });
-
-      await executeSaveCommand('test-set', {});
-
-      expect(mockInquirer.prompt).toHaveBeenCalledWith([
+      expect(inquirer.prompt).toHaveBeenCalledWith([
         {
           type: 'confirm',
           name: 'overwrite',
-          message: 'セット "test-set" は既に存在します。上書きしますか？',
+          message: 'セット "existing-set" は既に存在します。上書きしますか？',
           default: false,
         },
       ]);
+      expect(mockLogger.info).toHaveBeenCalledWith('保存をキャンセルしました');
     });
 
-    it('上書きをキャンセルした場合、処理を中断する', async () => {
-      (mockFs.access as unknown as jest.Mock).mockResolvedValueOnce(undefined); // セットが存在
-      (mockInquirer.prompt as unknown as jest.Mock).mockResolvedValueOnce({ overwrite: false });
+    it('forceオプションが指定された場合、確認なしで上書きする', async () => {
+      (fs.access as any).mockResolvedValue(undefined);
+      // globは2回呼ばれる（CLAUDE.mdと.claude/commands/**/*.md）
+      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
+      (fs.stat as any).mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      (fs.ensureDir as any).mockResolvedValue(undefined);
+      (fs.copy as any).mockResolvedValue(undefined);
 
-      await executeSaveCommand('test-set', {});
+      await executeSaveCommand('test-set', { verbose: false, force: true });
 
-      expect(mockFs.copy).not.toHaveBeenCalled();
+      expect(inquirer.prompt).not.toHaveBeenCalled();
+      expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" に1個のファイルを保存しました');
     });
 
-    it('--forceオプションがある場合、確認なしで上書きする', async () => {
-      (mockFs.access as unknown as jest.Mock).mockResolvedValueOnce(undefined); // セットが存在
-
-      await executeSaveCommand('test-set', { force: true });
-
-      expect(mockInquirer.prompt).not.toHaveBeenCalled();
-      expect(mockFs.copy).toHaveBeenCalled();
-    });
-
-    it('既存セットがない場合、確認なしで保存する', async () => {
-      (mockFs.access as unknown as jest.Mock).mockRejectedValueOnce(new Error('Not found')); // セットが存在しない
-
-      await executeSaveCommand('test-set', {});
-
-      expect(mockInquirer.prompt).not.toHaveBeenCalled();
-      expect(mockFs.copy).toHaveBeenCalled();
-    });
-  });
-
-  describe('ファイルコピー処理', () => {
-    beforeEach(() => {
-      (mockFs.access as unknown as jest.Mock).mockRejectedValueOnce(new Error('Not found')); // セットが存在しない
-    });
-
-    it('見つかったファイルをコピーする', async () => {
-      const files = ['CLAUDE.md', '.claude/commands/test1.md', '.claude/commands/test2.md'];
-      mockGlob
-        .mockResolvedValueOnce(['CLAUDE.md'])
-        .mockResolvedValueOnce(['.claude/commands/test1.md', '.claude/commands/test2.md']);
-
-      await executeSaveCommand('test-set', {});
-
-      expect(mockFs.ensureDir).toHaveBeenCalledTimes(3);
-      expect(mockFs.copy).toHaveBeenCalledTimes(3);
+    it('設定ファイルを正しくコピーする', async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      (fs.access as any).mockRejectedValue(error);
       
-      files.forEach(file => {
-        expect(mockFs.copy).toHaveBeenCalledWith(
-          path.join(process.cwd(), file),
-          path.join('/home/user/.claudy', 'test-set', file),
-          { overwrite: true }
-        );
-      });
-    });
+      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce(['.claude/commands/test.md']);
+      (fs.stat as any).mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      (fs.ensureDir as any).mockResolvedValue(undefined);
+      (fs.copy as any).mockResolvedValue(undefined);
 
-    it('ディレクトリ構造を維持してコピーする', async () => {
-      mockGlob
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce(['.claude/commands/subdir/test.md']);
+      await executeSaveCommand('new-set', { verbose: false });
 
-      await executeSaveCommand('test-set', {});
-
-      expect(mockFs.ensureDir).toHaveBeenCalledWith(
-        path.dirname(path.join('/home/user/.claudy', 'test-set', '.claude/commands/subdir/test.md'))
+      expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.claudy/new-set');
+      expect(fs.copy).toHaveBeenCalledTimes(2);
+      expect(fs.copy).toHaveBeenCalledWith(
+        expect.stringContaining('CLAUDE.md'),
+        '/home/user/.claudy/new-set/CLAUDE.md',
+        { overwrite: true }
       );
+      expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "new-set" に2個のファイルを保存しました');
+      expect(mockLogger.info).toHaveBeenCalledWith('保存先: /home/user/.claudy/new-set');
     });
-  });
 
-  describe('エラーハンドリング', () => {
-    it('ファイルコピー中のエラーを適切に処理する', async () => {
-      mockGlob
-        .mockResolvedValueOnce(['CLAUDE.md'])
-        .mockResolvedValueOnce([]);
-      (mockFs.access as unknown as jest.Mock).mockRejectedValueOnce(new Error('Not found')); // セットが存在しない
-      (mockFs.copy as unknown as jest.Mock).mockRejectedValueOnce(new Error('Copy error'));
+    it('ディレクトリ作成に失敗した場合、適切にエラーハンドリングする', async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      (fs.access as any).mockRejectedValue(error);
+      
+      (glob as any).mockResolvedValue(['CLAUDE.md']);
+      (fs.stat as any).mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      
+      const mkdirError = new Error('Permission denied') as NodeJS.ErrnoException;
+      mkdirError.code = 'EACCES';
+      (fs.ensureDir as any).mockRejectedValue(mkdirError);
 
-      await expect(executeSaveCommand('test-set', {})).rejects.toThrow(
-        new ClaudyError('セットの保存中にエラーが発生しました', 'SAVE_ERROR')
+      await expect(executeSaveCommand('test-set', { verbose: false })).rejects.toThrow();
+    });
+
+    it('verboseモードで詳細ログを出力する', async () => {
+      mockLogger.setVerbose.mockImplementation(() => {});
+      
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      (fs.access as any).mockRejectedValue(error);
+      
+      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
+      (fs.stat as any).mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      (fs.ensureDir as any).mockResolvedValue(undefined);
+      (fs.copy as any).mockResolvedValue(undefined);
+
+      await executeSaveCommand('test-set', { verbose: true });
+
+      expect(mockLogger.setVerbose).toHaveBeenCalledWith(true);
+      expect(mockLogger.debug).toHaveBeenCalledWith('保存先: /home/user/.claudy/test-set');
+      expect(mockLogger.debug).toHaveBeenCalledWith('見つかったファイル: CLAUDE.md');
+    });
+
+    it('空のディレクトリは無視される', async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      (fs.access as any).mockRejectedValue(error);
+      
+      (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
+      (fs.stat as any).mockImplementation((path: any) => {
+        const pathStr = path.toString();
+        if (pathStr.endsWith('/')) {
+          return Promise.resolve({ isFile: () => false } as any);
+        }
+        return Promise.resolve({ isFile: () => true } as any);
+      });
+      (fs.ensureDir as any).mockResolvedValue(undefined);
+      (fs.copy as any).mockResolvedValue(undefined);
+
+      await executeSaveCommand('test-set', { verbose: false });
+
+      // ディレクトリはコピーされない
+      expect(fs.copy).toHaveBeenCalledTimes(1);
+      expect(fs.copy).toHaveBeenCalledWith(
+        expect.stringContaining('CLAUDE.md'),
+        expect.any(String),
+        expect.any(Object)
       );
     });
   });

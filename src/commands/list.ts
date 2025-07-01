@@ -5,6 +5,8 @@ import chalk from 'chalk';
 import { logger } from '../utils/logger';
 import { ClaudyError } from '../types';
 import { getClaudyDir } from '../utils/path';
+import { ErrorCodes, wrapError } from '../types/errors';
+import { handleFileOperation, handleError } from '../utils/errorHandler';
 
 interface ListOptions {
   verbose?: boolean;
@@ -23,7 +25,9 @@ interface SetInfo {
  */
 async function getSetInfo(setPath: string): Promise<SetInfo | null> {
   try {
+    // 直接fs.statを呼び出してエラーコードを保持
     const stats = await fs.stat(setPath);
+    
     if (!stats.isDirectory()) {
       return null;
     }
@@ -36,8 +40,15 @@ async function getSetInfo(setPath: string): Promise<SetInfo | null> {
       createdAt: stats.birthtime,
       fileCount: files,
     };
-  } catch {
-    return null;
+  } catch (error) {
+    // アクセスエラーの場合はnullを返す
+    const systemError = error as NodeJS.ErrnoException;
+    if (systemError.code === 'EACCES' || systemError.code === 'ENOENT') {
+      logger.debug(`セットへのアクセス不可: ${setPath} (${systemError.code})`);
+      return null;
+    }
+    // その他のエラーは再スロー
+    throw wrapError(error, ErrorCodes.FILE_READ_ERROR, undefined, { path: setPath });
   }
 }
 
@@ -50,16 +61,30 @@ async function countFiles(dirPath: string): Promise<number> {
   let count = 0;
   
   async function countRecursive(currentPath: string): Promise<void> {
-    const items = await fs.readdir(currentPath, { withFileTypes: true });
-    
-    for (const item of items) {
-      const itemPath = path.join(currentPath, item.name);
+    try {
+      const items = await handleFileOperation(
+        () => fs.readdir(currentPath, { withFileTypes: true }),
+        ErrorCodes.FILE_READ_ERROR,
+        currentPath
+      );
       
-      if (item.isDirectory()) {
-        await countRecursive(itemPath);
-      } else if (item.isFile()) {
-        count++;
+      for (const item of items) {
+        const itemPath = path.join(currentPath, item.name);
+        
+        if (item.isDirectory()) {
+          await countRecursive(itemPath);
+        } else if (item.isFile()) {
+          count++;
+        }
       }
+    } catch (error) {
+      // アクセスエラーの場合はスキップ
+      const systemError = error as NodeJS.ErrnoException;
+      if (systemError.code === 'EACCES') {
+        logger.debug(`アクセス拒否: ${currentPath}`);
+        return;
+      }
+      throw error;
     }
   }
   
@@ -109,6 +134,10 @@ function displayTable(sets: SetInfo[]): void {
 
   console.log(separator);
   console.log(chalk.gray(`合計: ${sets.length}個のセット`));
+  
+  if (sets.length > 0) {
+    console.log('\n' + chalk.dim('ヒント: claudy load <セット名> で設定を展開できます'));
+  }
 }
 
 /**
@@ -123,15 +152,28 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
     logger.debug(`claudyディレクトリ: ${claudyDir}`);
     
     // claudyディレクトリの存在確認
-    if (!await fs.pathExists(claudyDir)) {
-      logger.info('保存されたセットはありません');
-      logger.info('まず claudy save <name> でセットを保存してください');
-      return;
+    try {
+      await handleFileOperation(
+        () => fs.access(claudyDir),
+        ErrorCodes.DIR_NOT_FOUND,
+        claudyDir
+      );
+    } catch (error) {
+      if (error instanceof ClaudyError && error.code === ErrorCodes.DIR_NOT_FOUND) {
+        logger.info('保存されたセットはありません');
+        logger.info('まず claudy save <name> でセットを保存してください');
+        return;
+      }
+      throw error;
     }
     
     // セット一覧を取得
     logger.info('保存されたセットを検索中...');
-    const items = await fs.readdir(claudyDir, { withFileTypes: true });
+    const items = await handleFileOperation(
+      () => fs.readdir(claudyDir, { withFileTypes: true }),
+      ErrorCodes.FILE_READ_ERROR,
+      claudyDir
+    );
     
     const sets: SetInfo[] = [];
     
@@ -156,11 +198,7 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
     if (error instanceof ClaudyError) {
       throw error;
     }
-    throw new ClaudyError(
-      'セット一覧の取得中にエラーが発生しました',
-      'LIST_ERROR',
-      error
-    );
+    throw wrapError(error, ErrorCodes.LIST_ERROR, 'セット一覧の取得中にエラーが発生しました');
   }
 }
 
@@ -172,7 +210,23 @@ export function registerListCommand(program: Command): void {
   program
     .command('list')
     .description('保存済みセットの一覧を表示')
+    .addHelpText('after', `
+使用例:
+  $ claudy list                    # 全てのセットを一覧表示
+  $ claudy list -v                 # 詳細情報付きで表示
+
+表示内容:
+  - セット名
+  - 作成日時
+  - ファイル数`)
     .action(async (options: ListOptions) => {
-      await executeListCommand(options);
+      const globalOptions = program.opts();
+      options.verbose = globalOptions.verbose || false;
+      
+      try {
+        await executeListCommand(options);
+      } catch (error) {
+        await handleError(error, ErrorCodes.LIST_ERROR);
+      }
     });
 }

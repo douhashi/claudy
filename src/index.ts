@@ -6,6 +6,8 @@ import path from 'path';
 import { logger } from './utils/logger';
 import { initializeClaudyDir } from './utils/config';
 import { ClaudyError } from './types';
+import { ErrorCodes, formatErrorMessage } from './types/errors';
+import { handleError as handleClaudyError } from './utils/errorHandler';
 import { registerSaveCommand } from './commands/save';
 import { registerLoadCommand } from './commands/load';
 import { registerListCommand } from './commands/list';
@@ -29,14 +31,24 @@ async function main(): Promise<void> {
 
     program
       .name('claudy')
-      .description('Claude AI設定ファイル管理ツール')
+      .description('Claude AI設定ファイル管理ツール\n\nClaude AIの設定ファイル（CLAUDE.md、.claude/commands/**/*.md）を\n名前付きセットとして保存・管理できます。')
       .version(version)
       .option('-v, --verbose', '詳細なログを表示')
-      .option('-p, --profile <profile>', '使用するプロファイルを指定');
+      .option('-p, --profile <profile>', '使用するプロファイルを指定')
+      .addHelpText('after', `
+使用例:
+  $ claudy save myproject        # 現在の設定を"myproject"として保存
+  $ claudy list                  # 保存されたセットの一覧を表示
+  $ claudy load myproject        # "myproject"の設定を現在のディレクトリに展開
+  $ claudy delete myproject      # "myproject"セットを削除
+
+詳細情報:
+  https://github.com/douhashi/claudy`);
 
     program
       .command('init')
       .description('claudy設定を初期化')
+      .addHelpText('after', '\n初回実行時に使用してください。~/.claudyディレクトリを作成します。')
       .action(async () => {
         try {
           const options = program.opts();
@@ -45,7 +57,7 @@ async function main(): Promise<void> {
           await initializeClaudyDir();
           logger.success('claudyの初期化が完了しました');
         } catch (error) {
-          handleError(error);
+          await handleClaudyError(error, ErrorCodes.INTERNAL_ERROR);
         }
       });
 
@@ -73,10 +85,7 @@ async function main(): Promise<void> {
 
 function handleError(error: unknown): void {
   if (error instanceof ClaudyError) {
-    logger.error(error.message);
-    if (error.details) {
-      logger.debug(JSON.stringify(error.details, null, 2));
-    }
+    logger.error(formatErrorMessage(error, true, true));
   } else if (error instanceof Error) {
     logger.error(`予期しないエラーが発生しました: ${error.message}`);
     logger.debug(error.stack || '');
