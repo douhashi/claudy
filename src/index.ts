@@ -31,14 +31,24 @@ async function main(): Promise<void> {
 
     program
       .name('claudy')
-      .description('Claude AI設定ファイル管理ツール')
+      .description('Claude AI設定ファイル管理ツール\n\nClaude AIの設定ファイル（CLAUDE.md、.claude/commands/**/*.md）を\n名前付きセットとして保存・管理できます。')
       .version(version)
       .option('-v, --verbose', '詳細なログを表示')
-      .option('-p, --profile <profile>', '使用するプロファイルを指定');
+      .option('-p, --profile <profile>', '使用するプロファイルを指定')
+      .addHelpText('after', `
+使用例:
+  $ claudy save myproject        # 現在の設定を"myproject"として保存
+  $ claudy list                  # 保存されたセットの一覧を表示
+  $ claudy load myproject        # "myproject"の設定を現在のディレクトリに展開
+  $ claudy delete myproject      # "myproject"セットを削除
+
+詳細情報:
+  https://github.com/douhashi/claudy`);
 
     program
       .command('init')
       .description('claudy設定を初期化')
+      .addHelpText('after', '\n初回実行時に使用してください。~/.claudyディレクトリを作成します。')
       .action(async () => {
         try {
           const options = program.opts();

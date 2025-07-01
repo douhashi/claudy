@@ -103,6 +103,8 @@ export async function executeDeleteCommand(
     
     // 成功メッセージ
     logger.success(`✓ セット "${name}" を削除しました`);
+    logger.info('\n現在のセット一覧を確認するには:');
+    logger.info('  $ claudy list');
     
   } catch (error) {
     if (error instanceof ClaudyError) {
@@ -121,6 +123,13 @@ export function registerDeleteCommand(program: Command): void {
     .command('delete <name>')
     .description('保存済みセットを削除')
     .option('-f, --force', '確認なしで削除')
+    .addHelpText('after', `
+使用例:
+  $ claudy delete old-project      # "old-project"セットを削除（確認あり）
+  $ claudy delete temp -f          # "temp"セットを即座に削除
+
+注意:
+  削除したセットは復元できません`)
     .action(async (name: string, options: DeleteOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;

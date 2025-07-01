@@ -135,6 +135,10 @@ function displayTable(sets: SetInfo[]): void {
 
   console.log(separator);
   console.log(chalk.gray(`合計: ${sets.length}個のセット`));
+  
+  if (sets.length > 0) {
+    console.log('\n' + chalk.dim('ヒント: claudy load <セット名> で設定を展開できます'));
+  }
 }
 
 /**
@@ -207,6 +211,15 @@ export function registerListCommand(program: Command): void {
   program
     .command('list')
     .description('保存済みセットの一覧を表示')
+    .addHelpText('after', `
+使用例:
+  $ claudy list                    # 全てのセットを一覧表示
+  $ claudy list -v                 # 詳細情報付きで表示
+
+表示内容:
+  - セット名
+  - 作成日時
+  - ファイル数`)
     .action(async (options: ListOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;

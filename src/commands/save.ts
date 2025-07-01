@@ -202,7 +202,9 @@ export async function executeSaveCommand(
     
     // 成功メッセージ
     logger.success(`✓ セット "${name}" に${files.length}個のファイルを保存しました`);
-    logger.success(`保存先: ${setPath}`);
+    logger.info(`保存先: ${setPath}`);
+    logger.info('\n次のコマンドでこのセットを利用できます:');
+    logger.info(`  $ claudy load ${name}`);
     
     if (options.verbose) {
       logger.info('保存されたファイル:');
@@ -227,6 +229,15 @@ export function registerSaveCommand(program: Command): void {
     .command('save <name>')
     .description('現在のディレクトリのClaude設定ファイルを名前付きセットとして保存')
     .option('-f, --force', '既存のセットを確認なしで上書き')
+    .addHelpText('after', `
+使用例:
+  $ claudy save frontend           # フロントエンドプロジェクトの設定を保存
+  $ claudy save backend -f         # 既存の"backend"セットを上書き
+  $ claudy save project-v2         # バージョン付きで保存
+
+保存対象ファイル:
+  - CLAUDE.md                      # プロジェクトの指示書
+  - .claude/commands/**/*.md       # カスタムコマンド`)
     .action(async (name: string, options: SaveOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;

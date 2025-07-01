@@ -23,6 +23,16 @@ export function registerLoadCommand(program: Command): void {
     .command('load <name>')
     .description('保存済みの設定セットを現在のディレクトリに展開')
     .option('-f, --force', '確認なしで上書き')
+    .addHelpText('after', `
+使用例:
+  $ claudy load frontend           # "frontend"セットを展開
+  $ claudy load backend -f         # 既存ファイルを強制上書き
+  $ cd ~/projects/new-app && claudy load template  # 別ディレクトリで展開
+
+既存ファイルの処理:
+  - バックアップを作成 (.bakファイル)
+  - 上書き
+  - キャンセル`)
     .action(async (name: string, options: LoadOptions) => {
       try {
         const globalOptions = program.opts();
@@ -102,6 +112,13 @@ async function loadSet(name: string, options: LoadOptions): Promise<void> {
   files.forEach(file => {
     logger.info(`  - ${file}`);
   });
+  
+  if (conflicts.length > 0) {
+    logger.info('\nバックアップファイル:');
+    conflicts.forEach(file => {
+      logger.info(`  - ${file}.bak`);
+    });
+  }
 }
 
 async function getSetFiles(setDir: string): Promise<string[]> {
