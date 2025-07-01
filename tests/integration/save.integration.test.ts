@@ -46,8 +46,8 @@ describe('saveコマンド統合テスト', () => {
       // テスト用ファイルを作成
       await fs.writeFile(path.join(testDir, 'CLAUDE.md'), '# Test CLAUDE.md\n');
 
-      // saveコマンドを実行
-      await executeSaveCommand('test-set', {});
+      // saveコマンドを実行（--allオプションで全ファイルを自動保存）
+      await executeSaveCommand('test-set', { all: true });
 
       // ファイルが正しく保存されたか確認
       const savedFile = path.join(testClaudyDir, 'test-set', 'CLAUDE.md');
@@ -69,8 +69,8 @@ describe('saveコマンド統合テスト', () => {
         '# Test Command 2\n'
       );
 
-      // saveコマンドを実行
-      await executeSaveCommand('test-set', {});
+      // saveコマンドを実行（--allオプションで全ファイルを自動保存）
+      await executeSaveCommand('test-set', { all: true });
 
       // ファイルが正しく保存されたか確認
       const setDir = path.join(testClaudyDir, 'test-set');
@@ -93,8 +93,8 @@ describe('saveコマンド統合テスト', () => {
       // 新しいファイルを作成
       await fs.writeFile(path.join(testDir, 'CLAUDE.md'), '# New CLAUDE.md\n');
 
-      // saveコマンドを実行（--forceオプション付き）
-      await executeSaveCommand('test-set', { force: true });
+      // saveコマンドを実行（--allと--forceオプション付き）
+      await executeSaveCommand('test-set', { all: true, force: true });
 
       // 新しいファイルで上書きされたか確認
       expect(await fs.pathExists(path.join(setDir, 'old.md'))).toBe(true); // 古いファイルも残る
@@ -107,7 +107,7 @@ describe('saveコマンド統合テスト', () => {
     it('対象ファイルが存在しない場合エラーになる', async () => {
       // 何もファイルを作成しない
 
-      await expect(executeSaveCommand('test-set', {})).rejects.toThrow(
+      await expect(executeSaveCommand('test-set', { all: true })).rejects.toThrow(
         '保存対象のファイルが見つかりません。'
       );
     });
@@ -119,7 +119,7 @@ describe('saveコマンド統合テスト', () => {
       await fs.ensureDir(path.join(testDir, 'other'));
       await fs.writeFile(path.join(testDir, 'other', 'test.md'), '# Other\n');
 
-      await expect(executeSaveCommand('test-set', {})).rejects.toThrow(
+      await expect(executeSaveCommand('test-set', { all: true })).rejects.toThrow(
         '保存対象のファイルが見つかりません。'
       );
     });

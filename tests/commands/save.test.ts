@@ -15,6 +15,9 @@ jest.mock('inquirer', () => ({
   prompt: jest.fn(),
 }));
 jest.mock('glob');
+jest.mock('../../src/utils/file-selector', () => ({
+  performFileSelection: jest.fn(),
+}));
 
 // モジュールのインポート（モック後に行う）
 import { logger } from '../../src/utils/logger';
@@ -22,6 +25,7 @@ import * as pathUtils from '../../src/utils/path';
 import fs from 'fs-extra';
 import inquirer from 'inquirer';
 import { glob } from 'glob';
+import { performFileSelection } from '../../src/utils/file-selector';
 
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockPathUtils = pathUtils as jest.Mocked<typeof pathUtils>;
@@ -55,14 +59,14 @@ describe('saveコマンド', () => {
       );
     });
 
-    it('設定ファイルが存在しない場合エラーをスローする', async () => {
+    it('設定ファイルが存在しない場合エラーをスローする（--allオプション）', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
       
       (glob as any).mockResolvedValue([]);
       (fs.stat as any).mockRejectedValue(error);
 
-      await expect(executeSaveCommand('test-set', { verbose: false })).rejects.toThrow(
+      await expect(executeSaveCommand('test-set', { verbose: false, all: true })).rejects.toThrow(
         new ClaudyError(
           '保存対象のファイルが見つかりません。',
           ErrorCodes.NO_FILES_FOUND
@@ -70,7 +74,18 @@ describe('saveコマンド', () => {
       );
     });
 
-    it('既存のセットが存在する場合、確認プロンプトを表示する', async () => {
+    it('インタラクティブモードでファイルが選択されない場合エラーをスローする', async () => {
+      (performFileSelection as any).mockResolvedValue([]);
+
+      await expect(executeSaveCommand('test-set', { verbose: false })).rejects.toThrow(
+        new ClaudyError(
+          'ファイルが選択されませんでした',
+          ErrorCodes.NO_FILES_FOUND
+        )
+      );
+    });
+
+    it('既存のセットが存在する場合、確認プロンプトを表示する（--allオプション）', async () => {
       (fs.access as any).mockResolvedValue(undefined);
       (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
       (fs.stat as any).mockResolvedValue({
@@ -78,7 +93,7 @@ describe('saveコマンド', () => {
       } as any);
       (inquirer.prompt as any).mockResolvedValue({ overwrite: false });
 
-      await executeSaveCommand('existing-set', { verbose: false });
+      await executeSaveCommand('existing-set', { verbose: false, all: true });
 
       expect(inquirer.prompt).toHaveBeenCalledWith([
         {
@@ -91,7 +106,7 @@ describe('saveコマンド', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('保存をキャンセルしました');
     });
 
-    it('forceオプションが指定された場合、確認なしで上書きする', async () => {
+    it('forceオプションが指定された場合、確認なしで上書きする（--allオプション）', async () => {
       (fs.access as any).mockResolvedValue(undefined);
       // globは2回呼ばれる（CLAUDE.mdと.claude/commands/**/*.md）
       (glob as any).mockResolvedValueOnce(['CLAUDE.md']).mockResolvedValueOnce([]);
@@ -101,13 +116,30 @@ describe('saveコマンド', () => {
       (fs.ensureDir as any).mockResolvedValue(undefined);
       (fs.copy as any).mockResolvedValue(undefined);
 
-      await executeSaveCommand('test-set', { verbose: false, force: true });
+      await executeSaveCommand('test-set', { verbose: false, force: true, all: true });
 
       expect(inquirer.prompt).not.toHaveBeenCalled();
-      expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" に1個のファイルを保存しました');
+      expect(mockLogger.success).toHaveBeenCalledWith('✓ 1個のファイルを保存しました');
     });
 
-    it('設定ファイルを正しくコピーする', async () => {
+    it('デフォルトでインタラクティブモードを使用する', async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      (fs.access as any).mockRejectedValue(error);
+      
+      (performFileSelection as any).mockResolvedValue([
+        { files: ['CLAUDE.md'], baseDir: process.cwd() }
+      ]);
+      (fs.ensureDir as any).mockResolvedValue(undefined);
+      (fs.copy as any).mockResolvedValue(undefined);
+
+      await executeSaveCommand('test-set', { verbose: false });
+
+      expect(performFileSelection).toHaveBeenCalled();
+      expect(mockLogger.success).toHaveBeenCalledWith('✓ 1個のファイルを保存しました');
+    });
+
+    it('設定ファイルを正しくコピーする（--allオプション）', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
       (fs.access as any).mockRejectedValue(error);
@@ -119,7 +151,7 @@ describe('saveコマンド', () => {
       (fs.ensureDir as any).mockResolvedValue(undefined);
       (fs.copy as any).mockResolvedValue(undefined);
 
-      await executeSaveCommand('new-set', { verbose: false });
+      await executeSaveCommand('new-set', { verbose: false, all: true });
 
       expect(fs.ensureDir).toHaveBeenCalledWith('/home/user/.claudy/new-set');
       expect(fs.copy).toHaveBeenCalledTimes(2);
@@ -128,11 +160,11 @@ describe('saveコマンド', () => {
         '/home/user/.claudy/new-set/CLAUDE.md',
         { overwrite: true }
       );
-      expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "new-set" に2個のファイルを保存しました');
+      expect(mockLogger.success).toHaveBeenCalledWith('✓ 2個のファイルを保存しました');
       expect(mockLogger.info).toHaveBeenCalledWith('保存先: /home/user/.claudy/new-set');
     });
 
-    it('ディレクトリ作成に失敗した場合、適切にエラーハンドリングする', async () => {
+    it('ディレクトリ作成に失敗した場合、適切にエラーハンドリングする（--allオプション）', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
       (fs.access as any).mockRejectedValue(error);
@@ -146,10 +178,10 @@ describe('saveコマンド', () => {
       mkdirError.code = 'EACCES';
       (fs.ensureDir as any).mockRejectedValue(mkdirError);
 
-      await expect(executeSaveCommand('test-set', { verbose: false })).rejects.toThrow();
+      await expect(executeSaveCommand('test-set', { verbose: false, all: true })).rejects.toThrow();
     });
 
-    it('verboseモードで詳細ログを出力する', async () => {
+    it('verboseモードで詳細ログを出力する（--allオプション）', async () => {
       mockLogger.setVerbose.mockImplementation(() => {});
       
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
@@ -163,14 +195,14 @@ describe('saveコマンド', () => {
       (fs.ensureDir as any).mockResolvedValue(undefined);
       (fs.copy as any).mockResolvedValue(undefined);
 
-      await executeSaveCommand('test-set', { verbose: true });
+      await executeSaveCommand('test-set', { verbose: true, all: true });
 
       expect(mockLogger.setVerbose).toHaveBeenCalledWith(true);
       expect(mockLogger.debug).toHaveBeenCalledWith('保存先: /home/user/.claudy/test-set');
       expect(mockLogger.debug).toHaveBeenCalledWith('見つかったファイル: CLAUDE.md');
     });
 
-    it('空のディレクトリは無視される', async () => {
+    it('空のディレクトリは無視される（--allオプション）', async () => {
       const error = new Error('ENOENT') as NodeJS.ErrnoException;
       error.code = 'ENOENT';
       (fs.access as any).mockRejectedValue(error);
@@ -186,7 +218,7 @@ describe('saveコマンド', () => {
       (fs.ensureDir as any).mockResolvedValue(undefined);
       (fs.copy as any).mockResolvedValue(undefined);
 
-      await executeSaveCommand('test-set', { verbose: false });
+      await executeSaveCommand('test-set', { verbose: false, all: true });
 
       // ディレクトリはコピーされない
       expect(fs.copy).toHaveBeenCalledTimes(1);
@@ -195,6 +227,24 @@ describe('saveコマンド', () => {
         expect.any(String),
         expect.any(Object)
       );
+    });
+
+    it('ファイル数の内訳を表示する（プロジェクトとユーザーレベル両方）', async () => {
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      (fs.access as any).mockRejectedValue(error);
+      
+      (performFileSelection as any).mockResolvedValue([
+        { files: ['CLAUDE.md'], baseDir: process.cwd() },
+        { files: ['.claude/CLAUDE.md'], baseDir: '/home/user' }
+      ]);
+      (fs.ensureDir as any).mockResolvedValue(undefined);
+      (fs.copy as any).mockResolvedValue(undefined);
+
+      await executeSaveCommand('test-set', { verbose: false });
+
+      expect(mockLogger.info).toHaveBeenCalledWith('  - プロジェクトレベル: 1個');
+      expect(mockLogger.info).toHaveBeenCalledWith('  - ユーザーレベル: 1個');
     });
   });
 });

@@ -24,7 +24,7 @@ GH_PAGER= gh issue list --state open
 # 特定のIssueの詳細を確認
 GH_PAGER= gh issue view <issue番号>
 
-# Issueのコメントも含めて確認
+# 特定のIssueのコメントを確認
 GH_PAGER= gh issue view <issue番号> --comments
 ```
 
