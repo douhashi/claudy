@@ -41,6 +41,7 @@ export const ErrorCodes = {
   BACKUP_FAILED: 'OP_BACKUP_FAILED',
   EXPAND_FAILED: 'OP_EXPAND_FAILED',
   ROLLBACK_FAILED: 'OP_ROLLBACK_FAILED',
+  MIGRATION_ERROR: 'OP_MIGRATION_ERROR',
 
   // ファイル操作エラー (FILE_xxx)
   FILE_READ_ERROR: 'FILE_READ_ERROR',
@@ -49,6 +50,7 @@ export const ErrorCodes = {
   FILE_DELETE_ERROR: 'FILE_DELETE_ERROR',
   DIR_CREATE_ERROR: 'FILE_DIR_CREATE_ERROR',
   DIR_DELETE_ERROR: 'FILE_DIR_DELETE_ERROR',
+  DIR_COPY_ERROR: 'FILE_DIR_COPY_ERROR',
 
   // データ形式エラー (DATA_xxx)
   JSON_PARSE_ERROR: 'DATA_JSON_PARSE_ERROR',
@@ -115,6 +117,7 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCodes.BACKUP_FAILED]: 'バックアップの作成に失敗しました。',
   [ErrorCodes.EXPAND_FAILED]: 'ファイルの展開に失敗しました。',
   [ErrorCodes.ROLLBACK_FAILED]: 'ロールバックに失敗しました。',
+  [ErrorCodes.MIGRATION_ERROR]: '設定の移行に失敗しました。',
 
   // ファイル操作エラー
   [ErrorCodes.FILE_READ_ERROR]: 'ファイルの読み込みに失敗しました。',
@@ -123,6 +126,7 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCodes.FILE_DELETE_ERROR]: 'ファイルの削除に失敗しました。',
   [ErrorCodes.DIR_CREATE_ERROR]: 'ディレクトリの作成に失敗しました。',
   [ErrorCodes.DIR_DELETE_ERROR]: 'ディレクトリの削除に失敗しました。',
+  [ErrorCodes.DIR_COPY_ERROR]: 'ディレクトリのコピーに失敗しました。',
 
   // データ形式エラー
   [ErrorCodes.JSON_PARSE_ERROR]: 'JSONの解析に失敗しました。',

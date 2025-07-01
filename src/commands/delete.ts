@@ -4,7 +4,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { logger } from '../utils/logger';
 import { ClaudyError } from '../types';
-import { getClaudyDir, getProjectConfigDir } from '../utils/path';
+import { getProjectConfigDir } from '../utils/path';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
 import { handleFileOperation, handleError } from '../utils/errorHandler';
 

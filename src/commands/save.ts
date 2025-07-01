@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 import { ClaudyError } from '../types';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
 import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler';
-import { getClaudyDir, getProjectConfigDir } from '../utils/path';
+import { getProjectConfigDir } from '../utils/path';
 import { performFileSelection, FileSelectionResult } from '../utils/file-selector';
 
 interface SaveOptions {

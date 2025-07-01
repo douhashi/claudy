@@ -3,7 +3,7 @@ import path from 'path';
 import { stat, copy, rename, remove, ensureDir } from 'fs-extra';
 import inquirer from 'inquirer';
 import { logger } from '../utils/logger';
-import { getClaudyDir, getProjectConfigDir } from '../utils/path';
+import { getProjectConfigDir } from '../utils/path';
 import { ClaudyError } from '../types';
 import { glob } from 'glob';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';

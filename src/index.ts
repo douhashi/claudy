@@ -12,6 +12,7 @@ import { registerSaveCommand } from './commands/save';
 import { registerLoadCommand } from './commands/load';
 import { registerListCommand } from './commands/list';
 import { registerDeleteCommand } from './commands/delete';
+import { registerMigrateCommand } from './commands/migrate';
 
 async function getPackageVersion(): Promise<string> {
   try {
@@ -48,7 +49,7 @@ async function main(): Promise<void> {
     program
       .command('init')
       .description('claudy設定を初期化')
-      .addHelpText('after', '\n初回実行時に使用してください。~/.claudyディレクトリを作成します。')
+      .addHelpText('after', '\n初回実行時に使用してください。~/.config/claudy ディレクトリを作成します。')
       .action(async () => {
         try {
           const options = program.opts();
@@ -65,6 +66,7 @@ async function main(): Promise<void> {
     registerLoadCommand(program);
     registerListCommand(program);
     registerDeleteCommand(program);
+    registerMigrateCommand(program);
 
     program
       .command('help')
