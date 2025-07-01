@@ -5,20 +5,11 @@ import { ErrorCodes } from '../../src/types/errors';
 
 // モックの設定
 vi.mock('../../src/utils/logger');
-vi.mock('fs-extra', () => ({
-  access: vi.fn(),
-  stat: vi.fn(),
-  ensureDir: vi.fn(),
-  copy: vi.fn(),
-}));
+vi.mock('fs-extra');
 vi.mock('../../src/utils/path');
-vi.mock('inquirer', () => ({
-  prompt: vi.fn(),
-}));
+vi.mock('inquirer');
 vi.mock('glob');
-vi.mock('../../src/utils/file-selector', () => ({
-  performFileSelection: vi.fn(),
-}));
+vi.mock('../../src/utils/file-selector');
 
 // モジュールのインポート（モック後に行う）
 import { logger } from '../../src/utils/logger';
@@ -99,7 +90,7 @@ describe('saveコマンド', () => {
 
       await executeSaveCommand('existing-set', { verbose: false, all: true });
 
-      expect(inquirer.prompt).toHaveBeenCalledWith([
+      expect(mockInquirer.prompt).toHaveBeenCalledWith([
         {
           type: 'confirm',
           name: 'overwrite',
@@ -125,7 +116,7 @@ describe('saveコマンド', () => {
 
       await executeSaveCommand('test-set', { verbose: false, force: true, all: true });
 
-      expect(inquirer.prompt).not.toHaveBeenCalled();
+      expect(mockInquirer.prompt).not.toHaveBeenCalled();
       expect(mockLogger.success).toHaveBeenCalledWith('✓ 1個のファイルを保存しました');
     });
 
