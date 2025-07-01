@@ -67,6 +67,9 @@ export const ErrorCodes = {
   UNKNOWN_ERROR: 'SYS_UNKNOWN_ERROR',
   INTERNAL_ERROR: 'SYS_INTERNAL_ERROR',
   NETWORK_ERROR: 'SYS_NETWORK_ERROR',
+  
+  // UI/インタラクションエラー (UI_xxx)
+  FILE_SELECTION_ERROR: 'UI_FILE_SELECTION_ERROR',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -138,6 +141,9 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCodes.UNKNOWN_ERROR]: '不明なエラーが発生しました。',
   [ErrorCodes.INTERNAL_ERROR]: '内部エラーが発生しました。',
   [ErrorCodes.NETWORK_ERROR]: 'ネットワークエラーが発生しました。',
+  
+  // UI/インタラクションエラー
+  [ErrorCodes.FILE_SELECTION_ERROR]: 'ファイル選択中にエラーが発生しました。',
 };
 
 // エラー解決策の提案
