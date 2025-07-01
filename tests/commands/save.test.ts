@@ -41,16 +41,25 @@ describe('saveコマンド', () => {
     
     // デフォルトのモック設定
     mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.config/claudy');
-    mockPathUtils.getProjectConfigDir.mockReturnValue('/home/user/.config/claudy/projects/abcdef123456');
+    mockPathUtils.getSetDir.mockImplementation((setName) => {
+      return `/home/user/.config/claudy/sets/${setName}`;
+    });
+    mockPathUtils.validateSetName.mockImplementation((name) => {
+      if (!name || name.trim() === '') {
+        throw new ClaudyError('セット名を指定してください', ErrorCodes.INVALID_SET_NAME);
+      }
+      if (name === 'profiles') {
+        throw new ClaudyError('"profiles"は予約語のため使用できません', ErrorCodes.INVALID_SET_NAME, { setName: name });
+      }
+    });
   });
 
   describe('executeSaveCommand', () => {
     it('セット名が指定されていない場合エラーをスローする', async () => {
       await expect(executeSaveCommand('', { verbose: false })).rejects.toThrow(
         new ClaudyError(
-          'セット名が無効です。英数字、ハイフン、アンダースコアのみ使用できます。',
-          ErrorCodes.INVALID_SET_NAME,
-          { setName: '' }
+          'セット名を指定してください',
+          ErrorCodes.INVALID_SET_NAME
         )
       );
     });
@@ -58,8 +67,8 @@ describe('saveコマンド', () => {
     it('予約語を使用した場合エラーをスローする', async () => {
       await expect(executeSaveCommand('profiles', { verbose: false })).rejects.toThrow(
         new ClaudyError(
-          '"profiles" は予約されているため使用できません',
-          ErrorCodes.RESERVED_NAME,
+          '"profiles"は予約語のため使用できません',
+          ErrorCodes.INVALID_SET_NAME,
           { setName: 'profiles' }
         )
       );
@@ -165,15 +174,16 @@ describe('saveコマンド', () => {
 
       await executeSaveCommand('new-set', { verbose: false, all: true });
 
-      expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/user/.config/claudy/projects/abcdef123456/new-set');
+      expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/user/.config/claudy/sets/new-set/project');
+      expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/user/.config/claudy/sets/new-set/project/.claude/commands');
       expect(mockFs.copy).toHaveBeenCalledTimes(2);
       expect(mockFs.copy).toHaveBeenCalledWith(
         expect.stringContaining('CLAUDE.md'),
-        '/home/user/.config/claudy/projects/abcdef123456/new-set/CLAUDE.md',
+        '/home/user/.config/claudy/sets/new-set/project/CLAUDE.md',
         { overwrite: true }
       );
       expect(mockLogger.success).toHaveBeenCalledWith('✓ 2個のファイルを保存しました');
-      expect(mockLogger.info).toHaveBeenCalledWith('保存先: /home/user/.config/claudy/projects/abcdef123456/new-set');
+      expect(mockLogger.info).toHaveBeenCalledWith('保存先: /home/user/.config/claudy/sets/new-set');
     });
 
     it('ディレクトリ作成に失敗した場合、適切にエラーハンドリングする（--allオプション）', async () => {
@@ -216,7 +226,7 @@ describe('saveコマンド', () => {
       await executeSaveCommand('test-set', { verbose: true, all: true });
 
       expect(mockLogger.setVerbose).toHaveBeenCalledWith(true);
-      expect(mockLogger.debug).toHaveBeenCalledWith('保存先: /home/user/.config/claudy/projects/abcdef123456/test-set');
+      expect(mockLogger.debug).toHaveBeenCalledWith('保存先: /home/user/.config/claudy/sets/test-set');
       expect(mockLogger.debug).toHaveBeenCalledWith('見つかったファイル: CLAUDE.md');
     });
 
