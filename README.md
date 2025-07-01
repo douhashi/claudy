@@ -66,6 +66,8 @@ pnpm add -g claudy
 
 ### コマンド一覧
 
+詳細なコマンドリファレンスは[CLIコマンドリファレンス](docs/cli-reference.md)を参照してください。
+
 #### `claudy save <name>`
 Claude設定ファイルを名前付きセットとして保存します。デフォルトでインタラクティブにファイルを選択できます。
 
