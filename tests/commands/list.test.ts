@@ -190,7 +190,7 @@ describe('listコマンド', () => {
       expect(consoleOutput.some(line => line.includes('test-set') && line.includes('3個'))).toBe(true);
     });
 
-    it.skip('アクセスエラーが発生してもスキップして続行する', async () => {
+    it('アクセスエラーが発生してもスキップして続行する', async () => {
       const mockSets = [
         {
           name: 'accessible',

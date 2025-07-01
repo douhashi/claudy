@@ -25,11 +25,8 @@ interface SetInfo {
  */
 async function getSetInfo(setPath: string): Promise<SetInfo | null> {
   try {
-    const stats = await handleFileOperation(
-      () => fs.stat(setPath),
-      ErrorCodes.FILE_READ_ERROR,
-      setPath
-    );
+    // 直接fs.statを呼び出してエラーコードを保持
+    const stats = await fs.stat(setPath);
     
     if (!stats.isDirectory()) {
       return null;
@@ -47,9 +44,11 @@ async function getSetInfo(setPath: string): Promise<SetInfo | null> {
     // アクセスエラーの場合はnullを返す
     const systemError = error as NodeJS.ErrnoException;
     if (systemError.code === 'EACCES' || systemError.code === 'ENOENT') {
+      logger.debug(`セットへのアクセス不可: ${setPath} (${systemError.code})`);
       return null;
     }
-    throw error;
+    // その他のエラーは再スロー
+    throw wrapError(error, ErrorCodes.FILE_READ_ERROR, undefined, { path: setPath });
   }
 }
 
