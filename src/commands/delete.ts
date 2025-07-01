@@ -4,7 +4,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { logger } from '../utils/logger';
 import { ClaudyError } from '../types';
-import { getClaudyDir } from '../utils/path';
+import { getClaudyDir, getProjectConfigDir } from '../utils/path';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
 import { handleFileOperation, handleError } from '../utils/errorHandler';
 
@@ -67,8 +67,10 @@ export async function executeDeleteCommand(
     
     logger.debug(`削除対象セット: ${name}`);
     
-    const claudyDir = getClaudyDir();
-    const setPath = path.join(claudyDir, name);
+    // 現在のプロジェクトの設定ディレクトリを使用
+    const currentProjectPath = process.cwd();
+    const projectConfigDir = getProjectConfigDir(currentProjectPath);
+    const setPath = path.join(projectConfigDir, name);
     logger.debug(`セットパス: ${setPath}`);
     
     // セットの存在確認

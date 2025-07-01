@@ -111,3 +111,17 @@ export async function writeJson<T = unknown>(filePath: string, data: T): Promise
     );
   }
 }
+
+export async function copyFileOrDir(src: string, dest: string): Promise<void> {
+  try {
+    await fs.ensureDir(path.dirname(dest));
+    await fs.copy(src, dest, { overwrite: false });
+    logger.debug(`ディレクトリをコピーしました: ${src} → ${dest}`);
+  } catch (error) {
+    throw new ClaudyError(
+      `ディレクトリのコピーに失敗しました: ${src} → ${dest}`,
+      'DIR_COPY_ERROR',
+      error,
+    );
+  }
+}

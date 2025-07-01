@@ -1,13 +1,21 @@
 import { ClaudyConfig, ClaudyError } from '../types';
-import { getConfigPath, getClaudyDir, getProfilesDir } from './path';
-import { readJson, writeJson, fileExists, ensureDir } from './file';
+import { 
+  getConfigPath, 
+  getClaudyDir, 
+  getProfilesDir,
+  getUserConfigDir,
+  getProjectsDir,
+  getLegacyClaudyDir
+} from './path';
+import { readJson, writeJson, fileExists, ensureDir, copyFileOrDir } from './file';
 import { logger } from './logger';
+import path from 'path';
 
 const DEFAULT_CONFIG: ClaudyConfig = {
   defaultProfile: 'default',
   profiles: {
     default: {
-      path: '~/.claudy/profiles/default',
+      path: '~/.config/claudy/profiles/default',
       description: 'デフォルトプロファイル',
     },
   },
@@ -16,20 +24,80 @@ const DEFAULT_CONFIG: ClaudyConfig = {
 export async function initializeClaudyDir(): Promise<void> {
   const claudyDir = getClaudyDir();
   const profilesDir = getProfilesDir();
+  const userConfigDir = getUserConfigDir();
+  const projectsDir = getProjectsDir();
 
   await ensureDir(claudyDir);
   await ensureDir(profilesDir);
+  await ensureDir(userConfigDir);
+  await ensureDir(projectsDir);
 
   const configPath = getConfigPath();
   const configExists = await fileExists(configPath);
 
   if (!configExists) {
     await writeJson(configPath, DEFAULT_CONFIG);
-    logger.success('claudy設定を初期化しました');
+    logger.success('claudy設定を初期化しました（XDG Base Directory仕様準拠）');
   }
 }
 
+/**
+ * 旧形式から新形式への移行をチェックして実行
+ */
+export async function checkAndMigrateLegacyConfig(): Promise<boolean> {
+  const legacyDir = getLegacyClaudyDir();
+  const newDir = getClaudyDir();
+  
+  const legacyExists = await fileExists(legacyDir);
+  const newExists = await fileExists(newDir);
+  
+  if (legacyExists && !newExists) {
+    logger.info('旧形式の設定ディレクトリを検出しました。新形式への移行を開始します...');
+    
+    try {
+      // 新しいディレクトリ構造を作成
+      await initializeClaudyDir();
+      
+      // 旧設定ファイルを読み込み
+      const legacyConfigPath = path.join(legacyDir, 'config.json');
+      if (await fileExists(legacyConfigPath)) {
+        const legacyConfig = await readJson<ClaudyConfig>(legacyConfigPath);
+        
+        // パスを新形式に更新
+        const updatedConfig = { ...legacyConfig };
+        for (const profileName in updatedConfig.profiles) {
+          const profile = updatedConfig.profiles[profileName];
+          if (profile.path.startsWith('~/.claudy/')) {
+            profile.path = profile.path.replace('~/.claudy/', '~/.config/claudy/');
+          }
+        }
+        
+        // 新しい設定を保存
+        await saveConfig(updatedConfig);
+      }
+      
+      // プロファイルディレクトリをコピー
+      const legacyProfilesDir = path.join(legacyDir, 'profiles');
+      if (await fileExists(legacyProfilesDir)) {
+        await copyFileOrDir(legacyProfilesDir, getProfilesDir());
+      }
+      
+      logger.success('設定の移行が完了しました');
+      logger.info(`旧ディレクトリ (${legacyDir}) は手動で削除してください`);
+      return true;
+    } catch (error) {
+      logger.error('設定の移行中にエラーが発生しました:');
+      throw new ClaudyError('設定の移行に失敗しました', 'MIGRATION_ERROR', error);
+    }
+  }
+  
+  return false;
+}
+
 export async function loadConfig(): Promise<ClaudyConfig> {
+  // 移行チェックを実行
+  await checkAndMigrateLegacyConfig();
+  
   const configPath = getConfigPath();
   const configExists = await fileExists(configPath);
 

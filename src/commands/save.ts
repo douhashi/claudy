@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 import { ClaudyError } from '../types';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors';
 import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler';
-import { getClaudyDir } from '../utils/path';
+import { getClaudyDir, getProjectConfigDir } from '../utils/path';
 import { performFileSelection, FileSelectionResult } from '../utils/file-selector';
 
 interface SaveOptions {
@@ -217,9 +217,10 @@ export async function executeSaveCommand(
       }
     }
     
-    // 保存先のパス
-    const claudyDir = getClaudyDir();
-    const setPath = path.join(claudyDir, name);
+    // 保存先のパス（プロジェクト固有の設定ディレクトリを使用）
+    const currentProjectPath = process.cwd();
+    const projectConfigDir = getProjectConfigDir(currentProjectPath);
+    const setPath = path.join(projectConfigDir, name);
     logger.debug(`保存先: ${setPath}`);
     
     // 既存セットの確認

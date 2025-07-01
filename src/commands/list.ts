@@ -4,7 +4,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { logger } from '../utils/logger';
 import { ClaudyError } from '../types';
-import { getClaudyDir } from '../utils/path';
+import { getClaudyDir, getProjectConfigDir } from '../utils/path';
 import { ErrorCodes, wrapError } from '../types/errors';
 import { handleFileOperation, handleError } from '../utils/errorHandler';
 
@@ -148,15 +148,17 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
   try {
     logger.setVerbose(options.verbose || false);
     
-    const claudyDir = getClaudyDir();
-    logger.debug(`claudyディレクトリ: ${claudyDir}`);
+    // 現在のプロジェクトの設定ディレクトリを取得
+    const currentProjectPath = process.cwd();
+    const projectConfigDir = getProjectConfigDir(currentProjectPath);
+    logger.debug(`プロジェクト設定ディレクトリ: ${projectConfigDir}`);
     
     // claudyディレクトリの存在確認
     try {
       await handleFileOperation(
-        () => fs.access(claudyDir),
+        () => fs.access(projectConfigDir),
         ErrorCodes.DIR_NOT_FOUND,
-        claudyDir
+        projectConfigDir
       );
     } catch (error) {
       if (error instanceof ClaudyError && error.code === ErrorCodes.DIR_NOT_FOUND) {
@@ -170,16 +172,16 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
     // セット一覧を取得
     logger.info('保存されたセットを検索中...');
     const items = await handleFileOperation(
-      () => fs.readdir(claudyDir, { withFileTypes: true }),
+      () => fs.readdir(projectConfigDir, { withFileTypes: true }),
       ErrorCodes.FILE_READ_ERROR,
-      claudyDir
+      projectConfigDir
     );
     
     const sets: SetInfo[] = [];
     
     for (const item of items) {
       if (item.isDirectory() && item.name !== 'profiles' && !item.name.startsWith('.')) {
-        const setPath = path.join(claudyDir, item.name);
+        const setPath = path.join(projectConfigDir, item.name);
         const setInfo = await getSetInfo(setPath);
         
         if (setInfo) {
