@@ -13,7 +13,6 @@ import { registerSaveCommand } from './commands/save.js';
 import { registerLoadCommand } from './commands/load.js';
 import { registerListCommand } from './commands/list.js';
 import { registerDeleteCommand } from './commands/delete.js';
-import { registerMigrateCommand } from './commands/migrate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,7 +69,6 @@ async function main(): Promise<void> {
     registerLoadCommand(program);
     registerListCommand(program);
     registerDeleteCommand(program);
-    registerMigrateCommand(program);
 
     program
       .command('help')
