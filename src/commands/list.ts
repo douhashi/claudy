@@ -5,7 +5,7 @@ import path from 'path';
 import chalk from 'chalk';
 import { logger } from '../utils/logger.js';
 import { ClaudyError } from '../types/index.js';
-import { getProjectConfigDir } from '../utils/path.js';
+import { getSetsDir } from '../utils/path.js';
 import { ErrorCodes, wrapError } from '../types/errors.js';
 import { handleFileOperation, handleError } from '../utils/errorHandler.js';
 
@@ -15,16 +15,20 @@ interface ListOptions {
 
 interface SetInfo {
   name: string;
+  path: string;
   createdAt: Date;
   fileCount: number;
+  hasProjectFiles: boolean;
+  hasUserFiles: boolean;
 }
 
 /**
- * セット情報を取得
+ * セット情報を取得（新しい構造対応）
  * @param setPath - セットのパス
+ * @param basePath - ベースパス（相対パス計算用）
  * @returns セット情報
  */
-async function getSetInfo(setPath: string): Promise<SetInfo | null> {
+async function getSetInfo(setPath: string, basePath: string): Promise<SetInfo | null> {
   try {
     // 直接fs.statを呼び出してエラーコードを保持
     const stats = await fs.stat(setPath);
@@ -33,13 +37,41 @@ async function getSetInfo(setPath: string): Promise<SetInfo | null> {
       return null;
     }
 
-    // ファイル数をカウント
-    const files = await countFiles(setPath);
+    // project/userディレクトリの存在確認
+    let hasProjectFiles = false;
+    let hasUserFiles = false;
+    let totalFileCount = 0;
+
+    const projectPath = path.join(setPath, 'project');
+    try {
+      await fs.stat(projectPath);
+      const projectFiles = await countFiles(projectPath);
+      hasProjectFiles = projectFiles > 0;
+      totalFileCount += projectFiles;
+    } catch {
+      // projectディレクトリが存在しない場合は無視
+    }
+
+    const userPath = path.join(setPath, 'user');
+    try {
+      await fs.stat(userPath);
+      const userFiles = await countFiles(userPath);
+      hasUserFiles = userFiles > 0;
+      totalFileCount += userFiles;
+    } catch {
+      // userディレクトリが存在しない場合は無視
+    }
+
+    // ベースパスからの相対パスを計算
+    const relativePath = path.relative(basePath, setPath);
     
     return {
-      name: path.basename(setPath),
+      name: relativePath,
+      path: setPath,
       createdAt: stats.birthtime,
-      fileCount: files,
+      fileCount: totalFileCount,
+      hasProjectFiles,
+      hasUserFiles
     };
   } catch (error) {
     // アクセスエラーの場合はnullを返す
@@ -109,7 +141,7 @@ function formatDate(date: Date): string {
 }
 
 /**
- * テーブル形式で出力
+ * テーブル形式で出力（階層構造対応）
  * @param sets - セット情報の配列
  */
 function displayTable(sets: SetInfo[]): void {
@@ -119,26 +151,109 @@ function displayTable(sets: SetInfo[]): void {
   }
 
   // ヘッダー
-  const header = chalk.bold.cyan('セット名') + '\t' + 
-                 chalk.bold.cyan('作成日時') + '\t\t' + 
-                 chalk.bold.cyan('ファイル数');
-  const separator = chalk.gray('-'.repeat(50));
+  const header = chalk.bold.cyan('セット名') + '\t\t' + 
+                 chalk.bold.cyan('スコープ') + '\t' + 
+                 chalk.bold.cyan('ファイル数') + '\t' + 
+                 chalk.bold.cyan('作成日時');
+  const separator = chalk.gray('-'.repeat(70));
 
   console.log(header);
   console.log(separator);
 
-  // データ行
+  // カテゴリごとにグループ化
+  const categorized = new Map<string, SetInfo[]>();
+  
   for (const set of sets) {
-    const row = `${set.name}\t${formatDate(set.createdAt)}\t${set.fileCount}個`;
-    console.log(row);
+    const parts = set.name.split('/');
+    const category = parts.length > 1 ? parts[0] : '';
+    
+    if (!categorized.has(category)) {
+      categorized.set(category, []);
+    }
+    categorized.get(category)!.push(set);
+  }
+
+  // カテゴリごとに表示
+  for (const [category, categoryStets] of categorized) {
+    if (category) {
+      console.log(chalk.yellow(`\n[${category}]`));
+    }
+    
+    for (const set of categoryStets) {
+      // スコープ情報の作成
+      const scopes: string[] = [];
+      if (set.hasProjectFiles) scopes.push('P');
+      if (set.hasUserFiles) scopes.push('U');
+      const scopeStr = scopes.join('+');
+      
+      // セット名の整形（カテゴリがある場合はインデント）
+      const displayName = category ? `  ${set.name.substring(category.length + 1)}` : set.name;
+      
+      const row = `${displayName}\t\t${scopeStr}\t\t${set.fileCount}個\t\t${formatDate(set.createdAt)}`;
+      console.log(row);
+    }
   }
 
   console.log(separator);
   console.log(chalk.gray(`合計: ${sets.length}個のセット`));
+  console.log(chalk.dim('\nスコープ: P=プロジェクト, U=ユーザー'));
   
   if (sets.length > 0) {
-    console.log('\n' + chalk.dim('ヒント: claudy load <セット名> で設定を展開できます'));
+    console.log(chalk.dim('ヒント: claudy load <セット名> で設定を展開できます'));
   }
+}
+
+/**
+ * ディレクトリを再帰的に探索してセットを取得
+ * @param dirPath - 探索するディレクトリ
+ * @param basePath - ベースパス
+ * @param depth - 現在の深さ
+ * @returns セット情報の配列
+ */
+async function findSetsRecursive(dirPath: string, basePath: string, depth: number = 0): Promise<SetInfo[]> {
+  const sets: SetInfo[] = [];
+  
+  // 最大深度を制限（パフォーマンスのため）
+  if (depth > 5) {
+    return sets;
+  }
+
+  try {
+    const items = await fs.readdir(dirPath, { withFileTypes: true });
+    
+    for (const item of items) {
+      if (!item.isDirectory() || item.name.startsWith('.')) {
+        continue;
+      }
+      
+      const itemPath = path.join(dirPath, item.name);
+      
+      // project/userディレクトリがあるかチェック
+      const hasProjectDir = await fs.pathExists(path.join(itemPath, 'project'));
+      const hasUserDir = await fs.pathExists(path.join(itemPath, 'user'));
+      
+      if (hasProjectDir || hasUserDir) {
+        // これはセットディレクトリ
+        const setInfo = await getSetInfo(itemPath, basePath);
+        if (setInfo && setInfo.fileCount > 0) {
+          sets.push(setInfo);
+        }
+      } else {
+        // サブディレクトリを再帰的に探索
+        const subSets = await findSetsRecursive(itemPath, basePath, depth + 1);
+        sets.push(...subSets);
+      }
+    }
+  } catch (error) {
+    const systemError = error as NodeJS.ErrnoException;
+    if (systemError.code === 'EACCES') {
+      logger.debug(`アクセス拒否: ${dirPath}`);
+    } else {
+      throw error;
+    }
+  }
+  
+  return sets;
 }
 
 /**
@@ -149,17 +264,16 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
   try {
     logger.setVerbose(options.verbose || false);
     
-    // 現在のプロジェクトの設定ディレクトリを取得
-    const currentProjectPath = process.cwd();
-    const projectConfigDir = getProjectConfigDir(currentProjectPath);
-    logger.debug(`プロジェクト設定ディレクトリ: ${projectConfigDir}`);
+    // 新しい構造のセットディレクトリを取得
+    const setsDir = getSetsDir();
+    logger.debug(`セットディレクトリ: ${setsDir}`);
     
-    // claudyディレクトリの存在確認
+    // setsディレクトリの存在確認
     try {
       await handleFileOperation(
-        () => fs.access(projectConfigDir),
+        () => fs.access(setsDir),
         ErrorCodes.DIR_NOT_FOUND,
-        projectConfigDir
+        setsDir
       );
     } catch (error) {
       if (error instanceof ClaudyError && error.code === ErrorCodes.DIR_NOT_FOUND) {
@@ -170,26 +284,9 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
       throw error;
     }
     
-    // セット一覧を取得
+    // セット一覧を取得（再帰的に探索）
     logger.info('保存されたセットを検索中...');
-    const items = await handleFileOperation(
-      () => fs.readdir(projectConfigDir, { withFileTypes: true }),
-      ErrorCodes.FILE_READ_ERROR,
-      projectConfigDir
-    );
-    
-    const sets: SetInfo[] = [];
-    
-    for (const item of items) {
-      if (item.isDirectory() && item.name !== 'profiles' && !item.name.startsWith('.')) {
-        const setPath = path.join(projectConfigDir, item.name);
-        const setInfo = await getSetInfo(setPath);
-        
-        if (setInfo) {
-          sets.push(setInfo);
-        }
-      }
-    }
+    const sets = await findSetsRecursive(setsDir, setsDir);
     
     // 名前順でソート
     sets.sort((a, b) => a.name.localeCompare(b.name));
@@ -219,9 +316,17 @@ export function registerListCommand(program: Command): void {
   $ claudy list -v                 # 詳細情報付きで表示
 
 表示内容:
-  - セット名
+  - セット名（階層的に表示）
+  - スコープ（P: プロジェクト, U: ユーザー）
+  - ファイル数
   - 作成日時
-  - ファイル数`)
+
+階層的なセット:
+  node/
+    express              P+U    5個    2024/01/15 10:30
+    cli                  P      3個    2024/01/14 15:45
+  python/
+    django               P+U    8個    2024/01/10 09:00`)
     .action(async (options: ListOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;

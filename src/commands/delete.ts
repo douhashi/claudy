@@ -1,12 +1,11 @@
 import { Command } from 'commander';
 import fsExtra from 'fs-extra';
 const fs = fsExtra;
-import path from 'path';
 import inquirer from 'inquirer';
 import { logger } from '../utils/logger.js';
 import { ClaudyError } from '../types/index.js';
-import { getProjectConfigDir } from '../utils/path.js';
-import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors.js';
+import { getSetDir, validateSetName } from '../utils/path.js';
+import { ErrorCodes, wrapError } from '../types/errors.js';
 import { handleFileOperation, handleError } from '../utils/errorHandler.js';
 
 interface DeleteOptions {
@@ -58,20 +57,12 @@ export async function executeDeleteCommand(
     logger.setVerbose(options.verbose || false);
     
     // セット名のバリデーション
-    if (!name || name.trim().length === 0) {
-      throw new ClaudyError(
-        ErrorMessages[ErrorCodes.INVALID_SET_NAME],
-        ErrorCodes.INVALID_SET_NAME,
-        { setName: name }
-      );
-    }
+    validateSetName(name);
     
     logger.debug(`削除対象セット: ${name}`);
     
-    // 現在のプロジェクトの設定ディレクトリを使用
-    const currentProjectPath = process.cwd();
-    const projectConfigDir = getProjectConfigDir(currentProjectPath);
-    const setPath = path.join(projectConfigDir, name);
+    // 新しい構造のセットパスを使用
+    const setPath = getSetDir(name);
     logger.debug(`セットパス: ${setPath}`);
     
     // セットの存在確認
@@ -129,7 +120,13 @@ export function registerDeleteCommand(program: Command): void {
     .addHelpText('after', `
 使用例:
   $ claudy delete old-project      # "old-project"セットを削除（確認あり）
+  $ claudy delete node/cli         # 階層的なセット名も削除可能
   $ claudy delete temp -f          # "temp"セットを即座に削除
+
+階層的なセット名:
+  スラッシュ (/) を使用した階層的なセットも削除できます:
+  $ claudy delete node/express     # Node.js Express用の設定を削除
+  $ claudy delete python/django    # Python Django用の設定を削除
 
 注意:
   削除したセットは復元できません`)

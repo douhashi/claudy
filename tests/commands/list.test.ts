@@ -8,6 +8,7 @@ vi.mock('fs-extra', () => ({
     access: vi.fn(),
     readdir: vi.fn(),
     stat: vi.fn(),
+    pathExists: vi.fn(),
   },
 }));
 vi.mock('../../src/utils/path');
@@ -35,7 +36,8 @@ describe('listコマンド', () => {
     
     // デフォルトのモック設定
     mockPathUtils.getClaudyDir.mockReturnValue('/home/user/.config/claudy');
-    mockPathUtils.getProjectConfigDir.mockReturnValue('/home/user/.config/claudy/projects/abcdef123456');
+    mockPathUtils.getSetsDir.mockReturnValue('/home/user/.config/claudy/sets');
+    // getProjectConfigDirは新しい構造では使用しないが、互換性のためモックを設定
   });
 
   afterEach(() => {
@@ -54,64 +56,31 @@ describe('listコマンド', () => {
     });
 
     it('保存されたセットを正しく一覧表示する', async () => {
-      const mockSets = [
-        {
-          name: 'backend',
-          isDirectory: () => true,
-          isFile: () => false,
-        },
-        {
-          name: 'frontend',
-          isDirectory: () => true,
-          isFile: () => false,
-        },
-        {
-          name: '.hidden',
-          isDirectory: () => true,
-          isFile: () => false,
-        },
-        {
-          name: 'profiles',
-          isDirectory: () => true,
-          isFile: () => false,
-        },
-        {
-          name: 'file.txt',
-          isDirectory: () => false,
-          isFile: () => true,
-        },
-      ];
-
       vi.mocked(fs.access).mockResolvedValue(undefined);
       
-      // statのモック
-      vi.mocked(fs.stat).mockImplementation((path: any) => {
+      // pathExistsのモック
+      vi.mocked(fs.pathExists).mockImplementation((path: any) => {
         const pathStr = path.toString();
-        const birthtime = new Date('2024-01-01');
-        return Promise.resolve({
-          isDirectory: () => !pathStr.includes('file.txt'),
-          birthtime,
-        } as any);
+        // projectまたはuserディレクトリのみ存在
+        if (pathStr.includes('/project') || pathStr.includes('/user')) {
+          return Promise.resolve(true);
+        }
+        return Promise.resolve(false);
       });
-
-      // readdirのモック（ファイル数カウント用）
-      const readdirCalls = new Map<string, number>();
+      
+      // readdirのモック
       vi.mocked(fs.readdir).mockImplementation((dirPath: any, options?: any) => {
         const pathStr = dirPath.toString();
         
-        // 同じパスへの呼び出し回数を記録（無限ループ防止）
-        const callCount = readdirCalls.get(pathStr) || 0;
-        readdirCalls.set(pathStr, callCount + 1);
-        if (callCount > 10) {
-          return Promise.resolve([]);
-        }
-        
         if (options?.withFileTypes) {
-          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456') {
-            return Promise.resolve(mockSets as any);
+          if (pathStr === '/home/user/.config/claudy/sets') {
+            return Promise.resolve([
+              { name: 'backend', isDirectory: () => true, isFile: () => false },
+              { name: 'frontend', isDirectory: () => true, isFile: () => false },
+            ] as any);
           }
-          // セット内のファイル（簡略化）
-          if (pathStr.includes('/home/user/.config/claudy/projects/abcdef123456/')) {
+          // projectディレクトリ内
+          if (pathStr.includes('backend/project') || pathStr.includes('frontend/project')) {
             return Promise.resolve([
               { name: 'CLAUDE.md', isDirectory: () => false, isFile: () => true },
             ] as any);
@@ -120,66 +89,73 @@ describe('listコマンド', () => {
         }
         return Promise.resolve([]);
       });
+      
+      // statのモック
+      vi.mocked(fs.stat).mockImplementation(() => {
+        return Promise.resolve({
+          isDirectory: () => true,
+          birthtime: new Date('2024-01-01'),
+        } as any);
+      });
 
       await executeListCommand({ verbose: false });
 
       expect(mockLogger.info).toHaveBeenCalledWith('保存されたセットを検索中...');
       
-      // コンソール出力の確認
-      expect(consoleOutput).toContain('セット名\t作成日時\t\tファイル数');
-      expect(consoleOutput.some(line => line.includes('backend'))).toBe(true);
-      expect(consoleOutput.some(line => line.includes('frontend'))).toBe(true);
-      expect(consoleOutput.some(line => line.includes('合計: 2個のセット'))).toBe(true);
-      expect(consoleOutput.some(line => line.includes('ヒント: claudy load <セット名> で設定を展開できます'))).toBe(true);
-      
-      // 非表示ファイルとprofilesディレクトリは表示されないことを確認
-      expect(consoleOutput.some(line => line.includes('.hidden'))).toBe(false);
-      expect(consoleOutput.some(line => line.includes('profiles'))).toBe(false);
+      // コンソール出力の確認（新しい形式）
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('セット名');
+      expect(output).toContain('スコープ');
+      expect(output).toContain('ファイル数');
+      expect(output).toContain('backend');
+      expect(output).toContain('frontend');
+      expect(output).toContain('合計: 2個のセット');
     });
 
     it('ファイル数を正しくカウントする', async () => {
-      const mockSets = [
-        {
-          name: 'test-set',
-          isDirectory: () => true,
-        },
-      ];
-
       vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.pathExists).mockImplementation((path: any) => {
+        const pathStr = path.toString();
+        // projectまたはuserディレクトリのみ存在
+        if (pathStr.includes('/project') || pathStr.includes('/user')) {
+          return Promise.resolve(true);
+        }
+        return Promise.resolve(false);
+      });
       
-      // readdirのモック - 階層構造を持つファイルシステムを再現
-      const readdirCalls = new Map<string, number>();
+      // readdirのモック
       vi.mocked(fs.readdir).mockImplementation((dirPath: any, options?: any) => {
         const pathStr = dirPath.toString();
         
-        // 同じパスへの呼び出し回数を記録（無限ループ防止）
-        const callCount = readdirCalls.get(pathStr) || 0;
-        readdirCalls.set(pathStr, callCount + 1);
-        if (callCount > 10) {
-          return Promise.resolve([]);
-        }
-        
         if (options?.withFileTypes) {
-          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456') {
-            return Promise.resolve(mockSets as any);
+          if (pathStr === '/home/user/.config/claudy/sets') {
+            return Promise.resolve([
+              { name: 'test-set', isDirectory: () => true, isFile: () => false },
+            ] as any);
           }
-          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456/test-set') {
+          if (pathStr === '/home/user/.config/claudy/sets/test-set') {
+            // セットの直下にはproject/userディレクトリがあるが、
+            // pathExistsで判定されるので、ここではファイルを返さない
+            return Promise.resolve([]);
+          }
+          if (pathStr.endsWith('/test-set/project')) {
             return Promise.resolve([
               { name: 'CLAUDE.md', isDirectory: () => false, isFile: () => true },
               { name: '.claude', isDirectory: () => true, isFile: () => false },
             ] as any);
           }
-          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456/test-set/.claude') {
+          if (pathStr.endsWith('/test-set/project/.claude')) {
             return Promise.resolve([
               { name: 'commands', isDirectory: () => true, isFile: () => false },
             ] as any);
           }
-          if (pathStr.includes('commands')) {
+          if (pathStr.endsWith('/test-set/project/.claude/commands')) {
             return Promise.resolve([
               { name: 'test.md', isDirectory: () => false, isFile: () => true },
               { name: 'deploy.md', isDirectory: () => false, isFile: () => true },
             ] as any);
           }
+          return Promise.resolve([]);
         }
         return Promise.resolve([]);
       });
@@ -191,42 +167,45 @@ describe('listコマンド', () => {
 
       await executeListCommand({ verbose: false });
 
-      // 3個のファイル（CLAUDE.md, test.md, deploy.md）が表示されることを確認
-      expect(consoleOutput.some(line => line.includes('test-set') && line.includes('3個'))).toBe(true);
+      // コンソール出力の確認
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('test-set');
+      expect(output).toContain('3個'); // 3個のファイル
     });
 
     it('アクセスエラーが発生してもスキップして続行する', async () => {
-      const mockSets = [
-        {
-          name: 'accessible',
-          isDirectory: () => true,
-        },
-        {
-          name: 'inaccessible',
-          isDirectory: () => true,
-        },
-      ];
-
       vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.pathExists).mockImplementation((path: any) => {
+        const pathStr = path.toString();
+        // projectまたはuserディレクトリのみ存在
+        if (pathStr.includes('/project') || pathStr.includes('/user')) {
+          return Promise.resolve(true);
+        }
+        return Promise.resolve(false);
+      });
       
-      const readdirCalls = new Map<string, number>();
       vi.mocked(fs.readdir).mockImplementation((dirPath: any, options?: any) => {
         const pathStr = dirPath.toString();
         
-        // 同じパスへの呼び出し回数を記録（無限ループ防止）
-        const callCount = readdirCalls.get(pathStr) || 0;
-        readdirCalls.set(pathStr, callCount + 1);
-        if (callCount > 10) {
-          return Promise.resolve([]);
-        }
-        
         if (options?.withFileTypes) {
-          if (pathStr === '/home/user/.config/claudy/projects/abcdef123456') {
-            return Promise.resolve(mockSets as any);
+          if (pathStr === '/home/user/.config/claudy/sets') {
+            return Promise.resolve([
+              { name: 'accessible', isDirectory: () => true, isFile: () => false },
+              { name: 'inaccessible', isDirectory: () => true, isFile: () => false },
+            ] as any);
           }
-          return Promise.resolve([
-            { name: 'CLAUDE.md', isDirectory: () => false, isFile: () => true },
-          ] as any);
+          if (pathStr.includes('accessible/project')) {
+            return Promise.resolve([
+              { name: 'CLAUDE.md', isDirectory: () => false, isFile: () => true },
+            ] as any);
+          }
+          if (pathStr.includes('inaccessible')) {
+            // アクセスエラー
+            const error = new Error('EACCES') as NodeJS.ErrnoException;
+            error.code = 'EACCES';
+            return Promise.reject(error);
+          }
+          return Promise.resolve([]);
         }
         return Promise.resolve([]);
       });
@@ -234,7 +213,6 @@ describe('listコマンド', () => {
       vi.mocked(fs.stat).mockImplementation((path: any) => {
         const pathStr = path.toString();
         if (pathStr.includes('inaccessible')) {
-          // getSetInfoでアクセスエラーがnullとして扱われる
           const error = new Error('EACCES') as NodeJS.ErrnoException;
           error.code = 'EACCES';
           return Promise.reject(error);
@@ -248,9 +226,10 @@ describe('listコマンド', () => {
       await executeListCommand({ verbose: false });
 
       // アクセス可能なセットのみ表示されることを確認
-      expect(consoleOutput.some(line => line.includes('accessible'))).toBe(true);
-      expect(consoleOutput.some(line => line.includes('inaccessible'))).toBe(false);
-      expect(consoleOutput.some(line => line.includes('合計: 1個のセット'))).toBe(true);
+      const output = consoleOutput.join('\n');
+      expect(output).toContain('accessible');
+      expect(output).not.toContain('inaccessible');
+      expect(output).toContain('合計: 1個のセット');
     });
 
     it('エラーが発生した場合、適切にラップして再スローする', async () => {

@@ -8,7 +8,7 @@ import { logger } from '../utils/logger.js';
 import { ClaudyError } from '../types/index.js';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors.js';
 import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler.js';
-import { getProjectConfigDir } from '../utils/path.js';
+import { getSetDir, validateSetName } from '../utils/path.js';
 import { performFileSelection, FileSelectionResult } from '../utils/file-selector.js';
 
 interface SaveOptions {
@@ -18,46 +18,6 @@ interface SaveOptions {
   all?: boolean;
 }
 
-/**
- * セット名のバリデーション
- * @param name - セット名
- * @throws {ClaudyError} 無効なセット名の場合
- */
-function validateSetName(name: string): void {
-  const invalidChars = /[/\\:*?"<>|]/;
-  
-  if (!name || name.trim().length === 0) {
-    throw new ClaudyError(
-      ErrorMessages[ErrorCodes.INVALID_SET_NAME],
-      ErrorCodes.INVALID_SET_NAME,
-      { setName: name }
-    );
-  }
-  
-  if (invalidChars.test(name)) {
-    throw new ClaudyError(
-      'セット名に使用できない文字が含まれています（/, \\, :, *, ?, ", <, >, |）',
-      ErrorCodes.INVALID_SET_NAME,
-      { setName: name, invalidChars: name.match(invalidChars) }
-    );
-  }
-  
-  if (name.length > 255) {
-    throw new ClaudyError(
-      'セット名は255文字以内で指定してください',
-      ErrorCodes.INVALID_SET_NAME,
-      { setName: name, length: name.length }
-    );
-  }
-  
-  if (name === 'profiles') {
-    throw new ClaudyError(
-      '"profiles" は予約されているため使用できません',
-      ErrorCodes.RESERVED_NAME,
-      { setName: name }
-    );
-  }
-}
 
 /**
  * 対象ファイルを検索
@@ -104,7 +64,7 @@ async function existsSet(setPath: string): Promise<boolean> {
 }
 
 /**
- * 複数のソースからファイルをコピー
+ * 複数のソースからファイルをコピー（新しい構造対応）
  * @param fileGroups - ファイルグループのリスト
  * @param targetDir - コピー先のディレクトリ
  */
@@ -113,7 +73,12 @@ async function copyFilesFromMultipleSources(
   targetDir: string
 ): Promise<void> {
   for (const group of fileGroups) {
-    await copyFiles(group.files, group.baseDir, targetDir);
+    // プロジェクトレベルかユーザーレベルかを判定
+    const isProjectLevel = group.baseDir === process.cwd();
+    const scopeDir = isProjectLevel ? 'project' : 'user';
+    const scopedTargetDir = path.join(targetDir, scopeDir);
+    
+    await copyFiles(group.files, group.baseDir, scopedTargetDir);
   }
 }
 
@@ -218,10 +183,8 @@ export async function executeSaveCommand(
       }
     }
     
-    // 保存先のパス（プロジェクト固有の設定ディレクトリを使用）
-    const currentProjectPath = process.cwd();
-    const projectConfigDir = getProjectConfigDir(currentProjectPath);
-    const setPath = path.join(projectConfigDir, name);
+    // 保存先のパス（新しい構造：sets/<set-name>/）
+    const setPath = getSetDir(name);
     logger.debug(`保存先: ${setPath}`);
     
     // 既存セットの確認
@@ -300,9 +263,16 @@ export function registerSaveCommand(program: Command): void {
     .addHelpText('after', `
 使用例:
   $ claudy save myproject          # インタラクティブにファイルを選択して保存（デフォルト）
+  $ claudy save node/cli           # 階層的なセット名で保存
   $ claudy save frontend -a        # 全ファイルを自動的に保存
   $ claudy save backend -f         # 既存の"backend"セットを上書き
   $ claudy save project-v2 -a -f   # 全ファイルを自動保存し、既存セットを上書き
+
+階層的なセット名:
+  スラッシュ (/) を使用して階層的にセットを整理できます:
+  $ claudy save node/express       # Node.js Express用の設定
+  $ claudy save python/django      # Python Django用の設定
+  $ claudy save test/unit          # ユニットテスト用の設定
 
 保存対象ファイル:
   プロジェクトレベル:
@@ -312,7 +282,12 @@ export function registerSaveCommand(program: Command): void {
   
   ユーザーレベル（デフォルトで選択可能）:
     - ~/.claude/CLAUDE.md          # グローバル設定
-    - ~/.claude/commands/**/*.md   # グローバルコマンド`)
+    - ~/.claude/commands/**/*.md   # グローバルコマンド
+
+保存先構造:
+  ~/.config/claudy/sets/<set-name>/
+    ├── project/                   # プロジェクトレベルのファイル
+    └── user/                      # ユーザーレベルのファイル`)
     .action(async (name: string, options: SaveOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;

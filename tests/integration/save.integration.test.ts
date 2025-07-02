@@ -9,10 +9,17 @@ const testBaseDir = path.join(os.tmpdir(), 'claudy-test', Date.now().toString())
 const testClaudyDir = path.join(testBaseDir, '.claudy-test');
 
 // utils/pathのモック
-vi.mock('../../src/utils/path', () => ({
-  getClaudyDir: vi.fn(() => testClaudyDir),
-  getProjectConfigDir: vi.fn(() => testClaudyDir),
-}));
+vi.mock('../../src/utils/path', () => {
+  const path = require('path');
+  return {
+    getClaudyDir: vi.fn(() => testClaudyDir),
+    getProjectConfigDir: vi.fn(() => testClaudyDir),
+    getSetsDir: vi.fn(() => path.join(testClaudyDir, 'sets')),
+    getSetDir: vi.fn((setName) => path.join(testClaudyDir, 'sets', setName)),
+    validateSetName: vi.fn(() => {}),
+    getHomeDir: vi.fn(() => testBaseDir),
+  };
+});
 
 // loggerのモック（実際の出力を抑制）
 vi.mock('../../src/utils/logger', () => ({
@@ -55,7 +62,7 @@ describe('saveコマンド統合テスト', () => {
       await executeSaveCommand('test-set', { all: true });
 
       // ファイルが正しく保存されたか確認
-      const savedFile = path.join(testClaudyDir, 'test-set', 'CLAUDE.md');
+      const savedFile = path.join(testClaudyDir, 'sets', 'test-set', 'project', 'CLAUDE.md');
       expect(await fs.pathExists(savedFile)).toBe(true);
       expect(await fs.readFile(savedFile, 'utf-8')).toBe('# Test CLAUDE.md\n');
     });
@@ -78,7 +85,7 @@ describe('saveコマンド統合テスト', () => {
       await executeSaveCommand('test-set', { all: true });
 
       // ファイルが正しく保存されたか確認
-      const setDir = path.join(testClaudyDir, 'test-set');
+      const setDir = path.join(testClaudyDir, 'sets', 'test-set', 'project');
       expect(await fs.pathExists(path.join(setDir, 'CLAUDE.md'))).toBe(true);
       expect(await fs.pathExists(path.join(setDir, '.claude', 'commands', 'test1.md'))).toBe(true);
       expect(await fs.pathExists(path.join(setDir, '.claude', 'commands', 'subdir', 'test2.md'))).toBe(true);
@@ -91,7 +98,7 @@ describe('saveコマンド統合テスト', () => {
 
     it('既存セットを--forceオプションで上書きする', async () => {
       // 既存のセットを作成
-      const setDir = path.join(testClaudyDir, 'test-set');
+      const setDir = path.join(testClaudyDir, 'sets', 'test-set', 'project');
       await fs.ensureDir(setDir);
       await fs.writeFile(path.join(setDir, 'old.md'), '# Old file\n');
 
@@ -102,7 +109,7 @@ describe('saveコマンド統合テスト', () => {
       await executeSaveCommand('test-set', { all: true, force: true });
 
       // 新しいファイルで上書きされたか確認
-      expect(await fs.pathExists(path.join(setDir, 'old.md'))).toBe(true); // 古いファイルも残る
+      expect(await fs.pathExists(path.join(setDir, 'old.md'))).toBe(true); // 既存ファイルも保持される（copyのoverwriteオプション）
       expect(await fs.pathExists(path.join(setDir, 'CLAUDE.md'))).toBe(true);
       expect(await fs.readFile(path.join(setDir, 'CLAUDE.md'), 'utf-8')).toBe('# New CLAUDE.md\n');
     });
