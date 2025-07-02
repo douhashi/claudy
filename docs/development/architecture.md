@@ -18,8 +18,7 @@ claudy/
 │   │   ├── save.ts      # 設定保存コマンド
 │   │   ├── load.ts      # 設定復元コマンド
 │   │   ├── list.ts      # 設定一覧コマンド
-│   │   ├── delete.ts    # 設定削除コマンド
-│   │   └── migrate.ts   # 設定移行コマンド
+│   │   └── delete.ts    # 設定削除コマンド
 │   ├── utils/            # ユーティリティ関数
 │   │   ├── file.ts      # ファイル操作
 │   │   ├── path.ts      # パス処理
@@ -158,7 +157,6 @@ registerSaveCommand(program);
 registerLoadCommand(program);
 registerListCommand(program);
 registerDeleteCommand(program);
-registerMigrateCommand(program);
 ```
 
 ### ファイル管理システム
@@ -238,7 +236,6 @@ export function registerSaveCommand(program: Command): void {
 - **load**: 保存された設定を現在のディレクトリに復元
 - **list**: 保存されたプロファイルの一覧表示
 - **delete**: 指定したプロファイルを削除
-- **migrate**: 旧形式から新形式への設定移行
 
 ## セキュリティ考慮事項
 
