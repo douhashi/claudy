@@ -16,7 +16,13 @@ export interface RetryOptions {
   backoff?: boolean;
 }
 
-// エラーハンドラー
+/**
+ * エラーハンドラー
+ * @param error - 発生したエラー
+ * @param code - エラーコード
+ * @param customMessage - カスタムエラーメッセージ
+ * @throws Never - プロセスを終了します
+ */
 export async function handleError(error: unknown, code: ErrorCode, customMessage?: string): Promise<never> {
   const claudyError = error instanceof ClaudyError 
     ? error 
@@ -34,7 +40,13 @@ export async function handleError(error: unknown, code: ErrorCode, customMessage
   process.exit(1);
 }
 
-// リトライ機能付き関数実行
+/**
+ * リトライ機能付き関数実行
+ * @param fn - 実行する関数
+ * @param options - リトライオプション
+ * @returns 関数の実行結果
+ * @throws {Error} リトライ回数を超えても成功しなかった場合
+ */
 export async function withRetry<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {}
@@ -68,7 +80,14 @@ export async function withRetry<T>(
   throw lastError || new Error('Unknown error in retry');
 }
 
-// ファイル操作のエラーハンドリング
+/**
+ * ファイル操作のエラーハンドリング
+ * @param operation - 実行するファイル操作
+ * @param errorCode - エラー発生時のエラーコード
+ * @param path - ファイルパス（オプション）
+ * @returns 操作の結果
+ * @throws {ClaudyError} 操作が失敗した場合
+ */
 export async function handleFileOperation<T>(
   operation: () => Promise<T>,
   errorCode: ErrorCode,
@@ -82,7 +101,12 @@ export async function handleFileOperation<T>(
   }
 }
 
-// 権限エラーの特別な処理
+/**
+ * 権限エラーの特別な処理
+ * @param _error - 発生したエラー
+ * @param path - ファイルパス（オプション）
+ * @throws Never - プロセスを終了します
+ */
 export function handlePermissionError(_error: NodeJS.ErrnoException, path?: string): never {
   const message = `ファイルまたはディレクトリへのアクセスが拒否されました${path ? `: ${path}` : ''}`;
   
@@ -95,7 +119,12 @@ export function handlePermissionError(_error: NodeJS.ErrnoException, path?: stri
   process.exit(1);
 }
 
-// ディスク容量エラーの特別な処理
+/**
+ * ディスク容量エラーの特別な処理
+ * @param _error - 発生したエラー
+ * @param path - ファイルパス（オプション）
+ * @throws Never - プロセスを終了します
+ */
 export function handleDiskSpaceError(_error: NodeJS.ErrnoException, path?: string): never {
   const message = `ディスク容量が不足しています${path ? `: ${path}` : ''}`;
   
@@ -108,7 +137,11 @@ export function handleDiskSpaceError(_error: NodeJS.ErrnoException, path?: strin
   process.exit(1);
 }
 
-// ユーザーフレンドリーなエラーメッセージ
+/**
+ * ユーザーフレンドリーなエラーメッセージを取得
+ * @param error - ClaudyErrorインスタンス
+ * @returns ユーザー向けメッセージ
+ */
 export function getUserFriendlyMessage(error: ClaudyError): string {
   // エラーコードに基づいてメッセージをカスタマイズ
   const details = error.details as { setName?: string } | undefined;

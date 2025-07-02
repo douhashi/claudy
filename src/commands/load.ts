@@ -57,6 +57,12 @@ export function registerLoadCommand(program: Command): void {
     });
 }
 
+/**
+ * loadコマンドの実行
+ * @param name - セット名
+ * @param options - コマンドオプション
+ * @throws {ClaudyError} セット名が無効な場合、セットが見つからない場合、展開に失敗した場合
+ */
 export async function executeLoadCommand(name: string, options: LoadOptions): Promise<void> {
   try {
     logger.setVerbose(options.verbose || false);
@@ -165,6 +171,12 @@ interface FileWithScope {
   baseDir: string;
 }
 
+/**
+ * セットディレクトリからファイル一覧を取得
+ * @param setDir - セットディレクトリのパス
+ * @returns ファイルとスコープ情報の配列
+ * @throws {ClaudyError} ファイル検索中にエラーが発生した場合
+ */
 async function getSetFiles(setDir: string): Promise<FileWithScope[]> {
   const patterns = [
     'CLAUDE.md',
@@ -212,6 +224,12 @@ async function getSetFiles(setDir: string): Promise<FileWithScope[]> {
   return filesWithScope;
 }
 
+/**
+ * 既存ファイルとの衝突をチェック
+ * @param filesWithScope - ファイルとスコープ情報の配列
+ * @returns 衝突するファイルパスの配列
+ * @throws {ClaudyError} ファイルステータス確認中にエラーが発生した場合
+ */
 async function checkConflicts(filesWithScope: FileWithScope[]): Promise<string[]> {
   const conflicts: string[] = [];
   
@@ -229,6 +247,12 @@ async function checkConflicts(filesWithScope: FileWithScope[]): Promise<string[]
   return conflicts;
 }
 
+/**
+ * 衝突するファイルのバックアップを作成
+ * @param filesWithScope - ファイルとスコープ情報の配列
+ * @param conflictFiles - 衝突するファイルのパス配列
+ * @throws {ClaudyError} バックアップ作成中にエラーが発生した場合
+ */
 async function createBackups(filesWithScope: FileWithScope[], conflictFiles: string[]): Promise<void> {
   for (const conflictFile of conflictFiles) {
     // conflictFileには"~/"プレフィックスが含まれる可能性があるので、スコープを判定
@@ -267,6 +291,11 @@ async function createBackups(filesWithScope: FileWithScope[], conflictFiles: str
   }
 }
 
+/**
+ * ファイルを展開
+ * @param filesWithScope - ファイルとスコープ情報の配列
+ * @throws {ClaudyError} ファイル展開中にエラーが発生した場合
+ */
 async function expandFiles(filesWithScope: FileWithScope[]): Promise<void> {
   const expandedFiles: Array<{ file: string; targetPath: string }> = [];
   const errors: Array<{ file: string; error: unknown }> = [];

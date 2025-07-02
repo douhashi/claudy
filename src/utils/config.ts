@@ -21,6 +21,10 @@ const DEFAULT_CONFIG: ClaudyConfig = {
   },
 };
 
+/**
+ * claudyディレクトリを初期化
+ * @throws {ClaudyError} ディレクトリ作成または設定ファイル書き込みに失敗した場合
+ */
 export async function initializeClaudyDir(): Promise<void> {
   const claudyDir = getClaudyDir();
   const profilesDir = getProfilesDir();
@@ -43,6 +47,8 @@ export async function initializeClaudyDir(): Promise<void> {
 
 /**
  * 旧形式から新形式への移行をチェックして実行
+ * @returns 移行を実行した場合true
+ * @throws {ClaudyError} 設定の移行に失敗した場合
  */
 export async function checkAndMigrateLegacyConfig(): Promise<boolean> {
   const legacyDir = getLegacyClaudyDir();
@@ -94,6 +100,11 @@ export async function checkAndMigrateLegacyConfig(): Promise<boolean> {
   return false;
 }
 
+/**
+ * 設定ファイルを読み込み
+ * @returns 設定オブジェクト
+ * @throws {ClaudyError} 設定ファイルの読み込みに失敗した場合
+ */
 export async function loadConfig(): Promise<ClaudyConfig> {
   // 移行チェックを実行
   await checkAndMigrateLegacyConfig();
@@ -113,6 +124,11 @@ export async function loadConfig(): Promise<ClaudyConfig> {
   }
 }
 
+/**
+ * 設定ファイルを保存
+ * @param config - 保存する設定オブジェクト
+ * @throws {ClaudyError} 設定ファイルの保存に失敗した場合
+ */
 export async function saveConfig(config: ClaudyConfig): Promise<void> {
   const configPath = getConfigPath();
   try {
@@ -123,6 +139,12 @@ export async function saveConfig(config: ClaudyConfig): Promise<void> {
   }
 }
 
+/**
+ * プロファイルを取得
+ * @param profileName - プロファイル名（省略時はデフォルト）
+ * @returns プロファイル名
+ * @throws {ClaudyError} プロファイルが見つからない場合
+ */
 export async function getProfile(profileName?: string): Promise<string> {
   const config = await loadConfig();
   const profile = profileName || config.defaultProfile;
@@ -138,6 +160,13 @@ export async function getProfile(profileName?: string): Promise<string> {
   return profile;
 }
 
+/**
+ * プロファイルを追加
+ * @param name - プロファイル名
+ * @param path - プロファイルのパス
+ * @param description - プロファイルの説明
+ * @throws {ClaudyError} プロファイルが既に存在する場合
+ */
 export async function addProfile(name: string, path: string, description?: string): Promise<void> {
   const config = await loadConfig();
 
@@ -150,6 +179,11 @@ export async function addProfile(name: string, path: string, description?: strin
   logger.success(`プロファイル '${name}' を追加しました`);
 }
 
+/**
+ * プロファイルを削除
+ * @param name - プロファイル名
+ * @throws {ClaudyError} プロファイルが見つからない場合、デフォルトプロファイルを削除しようとした場合
+ */
 export async function removeProfile(name: string): Promise<void> {
   const config = await loadConfig();
 
@@ -169,6 +203,11 @@ export async function removeProfile(name: string): Promise<void> {
   logger.success(`プロファイル '${name}' を削除しました`);
 }
 
+/**
+ * デフォルトプロファイルを設定
+ * @param name - プロファイル名
+ * @throws {ClaudyError} プロファイルが見つからない場合
+ */
 export async function setDefaultProfile(name: string): Promise<void> {
   const config = await loadConfig();
 

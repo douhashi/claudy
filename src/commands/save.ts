@@ -23,6 +23,7 @@ interface SaveOptions {
  * 対象ファイルを検索
  * @param baseDir - 検索を開始するディレクトリ
  * @returns 見つかったファイルのパスの配列
+ * @throws {ClaudyError} ファイル検索中にエラーが発生した場合
  */
 async function findTargetFiles(baseDir: string): Promise<string[]> {
   const patterns = [
@@ -48,6 +49,7 @@ async function findTargetFiles(baseDir: string): Promise<string[]> {
  * 既存のセットが存在するか確認
  * @param setPath - セットのパス
  * @returns 存在する場合true
+ * @throws {ClaudyError} ファイルアクセス権限エラーなど、ENOENT以外のエラーが発生した場合
  */
 async function existsSet(setPath: string): Promise<boolean> {
   try {
@@ -67,6 +69,7 @@ async function existsSet(setPath: string): Promise<boolean> {
  * 複数のソースからファイルをコピー（新しい構造対応）
  * @param fileGroups - ファイルグループのリスト
  * @param targetDir - コピー先のディレクトリ
+ * @throws {ClaudyError} ファイルコピー中にエラーが発生した場合
  */
 async function copyFilesFromMultipleSources(
   fileGroups: FileSelectionResult[],
@@ -87,6 +90,7 @@ async function copyFilesFromMultipleSources(
  * @param files - コピーするファイルのリスト
  * @param sourceDir - コピー元のディレクトリ
  * @param targetDir - コピー先のディレクトリ
+ * @throws {ClaudyError} ディレクトリ作成またはファイルコピー中にエラーが発生した場合
  */
 async function copyFiles(
   files: string[],
@@ -134,6 +138,7 @@ async function copyFiles(
  * saveコマンドの実行
  * @param name - セット名
  * @param options - コマンドオプション
+ * @throws {ClaudyError} セット名が無効な場合、ファイルが見つからない場合、保存に失敗した場合
  */
 export async function executeSaveCommand(
   name: string,

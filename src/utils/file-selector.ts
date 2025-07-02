@@ -27,6 +27,7 @@ export interface FileSearchResult {
  * @param baseDir - 検索を開始するディレクトリ
  * @param includeReferences - 参照ファイルを含めるかどうか
  * @returns 見つかったファイルの情報
+ * @throws {Error} ファイル検索中にエラーが発生した場合（ログに記録される）
  */
 export async function findClaudeFiles(
   baseDir: string,
@@ -97,6 +98,7 @@ export async function findClaudeFiles(
  * ユーザーレベルのClaude関連ファイルを検索
  * @param includeReferences - 参照ファイルを含めるかどうか
  * @returns 見つかったファイルの情報
+ * @throws {Error} ファイル検索中にエラーが発生した場合（ログに記録される）
  */
 export async function findUserClaudeFiles(
   includeReferences: boolean = true
@@ -239,6 +241,7 @@ async function selectGroup(hasProjectFiles: boolean, hasUserFiles: boolean): Pro
  * @param userFiles - ユーザーレベルのファイル情報
  * @param userBaseDir - ユーザーレベルの基準ディレクトリ
  * @returns 選択されたファイルの情報
+ * @throws {ClaudyError} ファイルが見つからない場合
  */
 export async function selectFilesInteractively(
   projectFiles: FileSearchResult,
@@ -444,6 +447,7 @@ export async function selectFilesInteractively(
 /**
  * ファイル選択を実行（エクスポート関数）
  * @returns 選択されたファイルの情報
+ * @throws {ClaudyError} ファイル選択中にエラーが発生した場合
  */
 export async function performFileSelection(): Promise<FileSelectionResult[]> {
   try {

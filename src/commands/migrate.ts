@@ -13,6 +13,7 @@ interface MigrateOptions {
 /**
  * migrateコマンドの実行
  * @param options - コマンドオプション
+ * @throws {ClaudyError} 設定の移行に失敗した場合
  */
 export async function executeMigrateCommand(options: MigrateOptions): Promise<void> {
   try {
