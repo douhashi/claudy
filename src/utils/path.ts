@@ -3,6 +3,11 @@ import os from 'os';
 import crypto from 'crypto';
 import { ClaudyError } from '../types/index.js';
 
+/**
+ * ホームディレクトリを取得
+ * @returns ホームディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
+ */
 export function getHomeDir(): string {
   const homeDir = os.homedir();
   if (!homeDir) {
@@ -14,6 +19,7 @@ export function getHomeDir(): string {
 /**
  * XDG Base Directory仕様に準拠した設定ディレクトリを取得
  * @returns 設定ディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
  */
 export function getConfigDir(): string {
   const xdgConfigHome = process.env.XDG_CONFIG_HOME;
@@ -26,6 +32,7 @@ export function getConfigDir(): string {
 /**
  * 旧形式のディレクトリパスを取得（互換性のため）
  * @returns 旧形式のディレクトリパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
  */
 export function getLegacyClaudyDir(): string {
   return path.join(getHomeDir(), '.claudy');
@@ -34,15 +41,27 @@ export function getLegacyClaudyDir(): string {
 /**
  * 新形式のclaudyディレクトリを取得（XDG準拠）
  * @returns claudyディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
  */
 export function getClaudyDir(): string {
   return getConfigDir();
 }
 
+/**
+ * プロファイルディレクトリを取得
+ * @returns プロファイルディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
+ */
 export function getProfilesDir(): string {
   return path.join(getClaudyDir(), 'profiles');
 }
 
+/**
+ * プロファイルディレクトリを取得
+ * @param profileName - プロファイル名
+ * @returns プロファイルディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
+ */
 export function getProfileDir(profileName: string): string {
   return path.join(getProfilesDir(), profileName);
 }
@@ -50,6 +69,7 @@ export function getProfileDir(profileName: string): string {
 /**
  * ユーザー設定ディレクトリを取得
  * @returns ユーザー設定ディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
  */
 export function getUserConfigDir(): string {
   return path.join(getProfilesDir(), 'default', 'user');
@@ -58,6 +78,7 @@ export function getUserConfigDir(): string {
 /**
  * プロジェクト設定ディレクトリを取得
  * @returns プロジェクト設定ディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
  */
 export function getProjectsDir(): string {
   return path.join(getClaudyDir(), 'projects');
@@ -81,16 +102,28 @@ export function getProjectHash(projectPath: string): string {
  * プロジェクト固有の設定ディレクトリを取得
  * @param projectPath プロジェクトのパス
  * @returns プロジェクト設定ディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
  */
 export function getProjectConfigDir(projectPath: string): string {
   const projectHash = getProjectHash(projectPath);
   return path.join(getProjectsDir(), projectHash);
 }
 
+/**
+ * 設定ファイルのパスを取得
+ * @returns 設定ファイルのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
+ */
 export function getConfigPath(): string {
   return path.join(getClaudyDir(), 'config.json');
 }
 
+/**
+ * パスを解決（~をホームディレクトリに展開）
+ * @param inputPath - 入力パス
+ * @returns 解決されたパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
+ */
 export function resolvePath(inputPath: string): string {
   if (inputPath.startsWith('~')) {
     return path.join(getHomeDir(), inputPath.slice(1));
@@ -105,6 +138,7 @@ export function normalizePathSeparators(inputPath: string): string {
 /**
  * 設定セットのベースディレクトリを取得
  * @returns 設定セットディレクトリのパス
+ * @throws {ClaudyError} ホームディレクトリが見つからない場合
  */
 export function getSetsDir(): string {
   return path.join(getClaudyDir(), 'sets');
@@ -114,6 +148,7 @@ export function getSetsDir(): string {
  * 設定セットのディレクトリを取得
  * @param setName セット名（階層的な名前をサポート）
  * @returns セットディレクトリのパス
+ * @throws {ClaudyError} セット名が無効な場合、ホームディレクトリが見つからない場合
  */
 export function getSetDir(setName: string): string {
   // セット名のバリデーション

@@ -27,6 +27,7 @@ interface SetInfo {
  * @param setPath - セットのパス
  * @param basePath - ベースパス（相対パス計算用）
  * @returns セット情報
+ * @throws {ClaudyError} ファイル読み込みエラーが発生した場合（EACCES、ENOENT以外）
  */
 async function getSetInfo(setPath: string, basePath: string): Promise<SetInfo | null> {
   try {
@@ -89,6 +90,7 @@ async function getSetInfo(setPath: string, basePath: string): Promise<SetInfo | 
  * ディレクトリ内のファイル数をカウント
  * @param dirPath - ディレクトリパス
  * @returns ファイル数
+ * @throws {ClaudyError} ファイル読み込みエラーが発生した場合（EACCES以外）
  */
 async function countFiles(dirPath: string): Promise<number> {
   let count = 0;
@@ -209,6 +211,7 @@ function displayTable(sets: SetInfo[]): void {
  * @param basePath - ベースパス
  * @param depth - 現在の深さ
  * @returns セット情報の配列
+ * @throws {ClaudyError} ディレクトリ読み込みエラーが発生した場合（EACCES以外）
  */
 async function findSetsRecursive(dirPath: string, basePath: string, depth: number = 0): Promise<SetInfo[]> {
   const sets: SetInfo[] = [];
@@ -259,6 +262,7 @@ async function findSetsRecursive(dirPath: string, basePath: string, depth: numbe
 /**
  * listコマンドの実行
  * @param options - コマンドオプション
+ * @throws {ClaudyError} ディレクトリが見つからない場合、一覧取得に失敗した場合
  */
 export async function executeListCommand(options: ListOptions): Promise<void> {
   try {

@@ -17,6 +17,7 @@ interface DeleteOptions {
  * セットの存在確認
  * @param setPath - セットのパス
  * @returns 存在する場合true
+ * @throws {ClaudyError} ファイルアクセス権限エラーなど、ENOENT以外のエラーが発生した場合
  */
 async function existsSet(setPath: string): Promise<boolean> {
   try {
@@ -35,6 +36,7 @@ async function existsSet(setPath: string): Promise<boolean> {
 /**
  * セットの削除
  * @param setPath - セットのパス
+ * @throws {ClaudyError} セット削除中にエラーが発生した場合
  */
 async function deleteSet(setPath: string): Promise<void> {
   await handleFileOperation(
@@ -48,6 +50,7 @@ async function deleteSet(setPath: string): Promise<void> {
  * deleteコマンドの実行
  * @param name - セット名
  * @param options - コマンドオプション
+ * @throws {ClaudyError} セット名が無効な場合、セットが見つからない場合、削除に失敗した場合
  */
 export async function executeDeleteCommand(
   name: string,
