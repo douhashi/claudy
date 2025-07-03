@@ -1,4 +1,4 @@
-# Git/Githubのブランチ運用とコミットルール
+# Git/Github: ブランチ運用とコミットルール
 
 このドキュメントは、プロジェクトにおけるGitの運用ルールとコミット規約をまとめたものです。
 
@@ -44,33 +44,6 @@ git checkout -b style/#<issue番号>-<対象名>
 git checkout -b refactor/#<issue番号>-<対象名>
 git checkout -b test/#<issue番号>-<テスト名>
 git checkout -b chore/#<issue番号>-<作業名>
-```
-
-## npm scriptsの使用
-
-このプロジェクトでは、以下のnpm scriptsを使用して開発ワークフローを管理します：
-
-```bash
-# コードフォーマット（Prettier）
-npm run format
-
-# Lintチェック（ESLint）
-npm run lint
-
-# テスト実行（Vitest）
-npm run test
-
-# テストをウォッチモードで実行
-npm run test:watch
-
-# テストカバレッジを計測
-npm run test:coverage
-
-# TypeScriptビルド
-npm run build
-
-# 開発モード（ファイル監視）
-npm run dev
 ```
 
 ## コミットルール
@@ -154,45 +127,6 @@ git commit -m "chore: TypeScriptの型定義を整理"
 git commit -m "chore: 依存パッケージを最新バージョンに更新"
 ```
 
-## プルリクエスト（PR）作成
-
-### PR作成前のチェックリスト
-
-- [ ] ローカルの自動テスト(フルテスト)が全てパスしていること
-- [ ] `npm run lint` で全ファイルのLintエラーがないこと
-- [ ] `npm run build` でTypeScriptのコンパイルエラーがないこと
-
-### PR作成コマンド
-
-```bash
-# 変更をプッシュ
-git push origin <ブランチ名>
-
-# PRテンプレートをファイルに保存
-cat > tmp/pr_body.md << 'EOF'
-## 概要
-[実装した機能/修正の説明]
-
-## 関連するIssue
-fixes #<issue番号>
-
-## 変更内容
-- [主な変更点1]
-- [主な変更点2]
-
-## テスト結果
-- [ ] ユニットテスト実行済み (npm run test)
-- [ ] 統合テスト実行済み
-- [ ] ESLint実行済み (npm run lint)
-- [ ] TypeScriptビルド成功 (npm run build)
-
-## スクリーンショット（UI変更がある場合）
-[該当する場合は画像を添付]
-
-## レビューポイント
-[レビュアーに特に確認してほしい点]
-EOF
-
 ## セキュリティ上の注意事項
 
 ### 絶対に操作してはいけないファイル
@@ -210,17 +144,6 @@ EOF
 - 機密情報が含まれていないか必ず確認してからコミットする
 - 誤って機密情報をコミットした場合は、即座に指示者に報告する
 
-### npmパッケージのセキュリティ
-
-```bash
-# 依存関係のセキュリティ監査
-npm audit
-
-# 脆弱性の自動修正
-npm audit fix
-
-# package-lock.jsonは必ずコミットする
-```
 
 ## トラブルシューティング
 

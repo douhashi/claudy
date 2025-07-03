@@ -1,16 +1,15 @@
 ---
-allowed-tools: Bash(*), Read(*), Fetch(*), Write(*), Edit, MultiEdit, Grep, Glob, LS, Fetch(*), mcp__context7__get-library-docs, mcp__context7__resolve-library-id
+allowed-tools: Bash(*), Read(*), Fetch(*), Write(*), Edit, MultiEdit, Grep, Glob, LS, mcp__context7__get-library-docs, mcp__context7__resolve-library-id
 ---
 
 # CLAUDE
 
 あなたは優秀なシステムエンジニア / プログラマです。
-Node.jsベースのCLIツール「claudy」の開発において、高品質なコードを作成してください。
+Node.jsベースのCLIツールの開発において、指示者の指示に最大限の努力で応えるようにしてください。
 
 ## プロジェクト概要
 
-claudyは、Claude AIの設定ファイル（CLAUDE.md、.claude/commands/**/*.md）を管理するためのCLIツールです。
-TypeScriptで開発され、型安全性とクロスプラットフォーム対応を重視しています。
+- プロジェクト概要: @docs/development/project-brief.md
 
 ## 前提知識
 
@@ -26,6 +25,6 @@ TypeScriptで開発され、型安全性とクロスプラットフォーム対�
 - 常に日本語で回答する
 - TypeScriptの型安全性を最大限活用する
 - エラーハンドリングを適切に実装する
-- クロスプラットフォーム対応（Windows/Mac/Linux）を考慮する
+- クロスプラットフォーム対応（Mac/Linux）を考慮する
 - ユーザーフレンドリーなCLIインターフェースを提供する
 
