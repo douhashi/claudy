@@ -37,7 +37,9 @@
       "loadCommand": "  $ claudy load {{name}}",
       "fileListItem": "  - {{prefix}}{{file}}",
       "projectLevel": "  - Project level: {{count}} file(s)",
-      "userLevel": "  - User level: {{count}} file(s)"
+      "userLevel": "  - User level: {{count}} file(s)",
+      "cleaningUpDir": "Cleaning up existing directory: {{path}}",
+      "cleanupComplete": "Directory cleanup completed: {{path}}"
     }
   },
   "load": {

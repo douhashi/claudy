@@ -194,7 +194,8 @@ export async function executeSaveCommand(
     logger.debug(t('commands:save.messages.savePathDebug', { path: setPath }));
     
     // 既存セットの確認
-    if (await existsSet(setPath) && !options.force) {
+    const setExists = await existsSet(setPath);
+    if (setExists && !options.force) {
       const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([
         {
           type: 'confirm',
@@ -207,6 +208,22 @@ export async function executeSaveCommand(
       if (!overwrite) {
         logger.info(t('commands:save.messages.cancelled'));
         return;
+      }
+    }
+    
+    // 既存セットのクリーンアップ
+    if (setExists) {
+      logger.debug(t('commands:save.messages.cleaningUpDir', { path: setPath }));
+      try {
+        await handleFileOperation(
+          () => fs.remove(setPath),
+          ErrorCodes.DIR_DELETE_ERROR,
+          setPath
+        );
+        logger.debug(t('commands:save.messages.cleanupComplete', { path: setPath }));
+      } catch (error) {
+        // クリーンアップに失敗した場合は処理を中断
+        throw error;
       }
     }
     

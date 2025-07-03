@@ -114,7 +114,7 @@ describe('saveコマンド統合テスト', () => {
       await executeSaveCommand('test-set', { all: true, force: true });
 
       // 新しいファイルで上書きされたか確認
-      expect(await fs.pathExists(path.join(setDir, 'old.md'))).toBe(true); // 既存ファイルも保持される（copyのoverwriteオプション）
+      expect(await fs.pathExists(path.join(setDir, 'old.md'))).toBe(false); // 既存ファイルは削除される（ディレクトリクリーンアップ）
       expect(await fs.pathExists(path.join(setDir, 'CLAUDE.md'))).toBe(true);
       expect(await fs.readFile(path.join(setDir, 'CLAUDE.md'), 'utf-8')).toBe('# New CLAUDE.md\n');
     });

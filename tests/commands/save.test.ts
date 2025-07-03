@@ -289,5 +289,105 @@ describe('saveコマンド', () => {
       expect(infoCalls.some(msg => msg.includes('Project') && msg.includes('1'))).toBe(true);
       expect(infoCalls.some(msg => msg.includes('User') && msg.includes('1'))).toBe(true);
     });
+
+    it('既存のセットが存在する場合、確認後にディレクトリを削除する（--allオプション）', async () => {
+      // 既存のセットが存在する
+      mockFs.access.mockResolvedValue(undefined);
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      mockInquirer.prompt.mockResolvedValue({ overwrite: true });
+      mockFs.remove.mockResolvedValue(undefined);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
+
+      await executeSaveCommand('existing-set', { verbose: false, all: true });
+
+      // ディレクトリが削除されることを確認
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/sets/existing-set');
+      // その後にファイルがコピーされることを確認
+      expect(mockFs.copy).toHaveBeenCalled();
+      // 成功メッセージが表示されることを確認
+      i18nAssert.calledWithPhrase(mockLogger.success, '1');
+    });
+
+    it('--forceオプションが指定された場合、確認なしでディレクトリを削除する（--allオプション）', async () => {
+      // 既存のセットが存在する
+      mockFs.access.mockResolvedValue(undefined);
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      mockFs.remove.mockResolvedValue(undefined);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
+
+      await executeSaveCommand('existing-set', { verbose: false, force: true, all: true });
+
+      // 確認プロンプトが表示されないことを確認
+      expect(mockInquirer.prompt).not.toHaveBeenCalled();
+      // ディレクトリが削除されることを確認
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/sets/existing-set');
+      // その後にファイルがコピーされることを確認
+      expect(mockFs.copy).toHaveBeenCalled();
+    });
+
+    it('ディレクトリ削除に失敗した場合、エラーをスローしてファイルコピーを実行しない', async () => {
+      // 既存のセットが存在する
+      mockFs.access.mockResolvedValue(undefined);
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      mockInquirer.prompt.mockResolvedValue({ overwrite: true });
+      
+      // ディレクトリ削除でエラーを発生させる
+      const removeError = new Error('Permission denied') as NodeJS.ErrnoException;
+      removeError.code = 'EACCES';
+      mockFs.remove.mockRejectedValue(removeError);
+
+      // エラーがスローされることを確認
+      await expect(executeSaveCommand('existing-set', { verbose: false, all: true }))
+        .rejects.toThrow();
+
+      // ディレクトリ削除が呼ばれたことを確認
+      expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/sets/existing-set');
+      // ファイルコピーが呼ばれていないことを確認
+      expect(mockFs.copy).not.toHaveBeenCalled();
+    });
+
+    it('新規セットの場合、ディレクトリ削除を行わない', async () => {
+      // 新規セット（存在しない）
+      const error = new Error('ENOENT') as NodeJS.ErrnoException;
+      error.code = 'ENOENT';
+      mockFs.access.mockRejectedValue(error);
+      
+      mockGlob.mockImplementation(async (pattern: string, options?: any) => {
+        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        return [];
+      });
+      mockFs.stat.mockResolvedValue({
+        isFile: () => true,
+      } as any);
+      mockFs.ensureDir.mockResolvedValue(undefined);
+      mockFs.copy.mockResolvedValue(undefined);
+
+      await executeSaveCommand('new-set', { verbose: false, all: true });
+
+      // ディレクトリ削除が呼ばれていないことを確認
+      expect(mockFs.remove).not.toHaveBeenCalled();
+      // ファイルコピーが呼ばれることを確認
+      expect(mockFs.copy).toHaveBeenCalled();
+    });
   });
 });
