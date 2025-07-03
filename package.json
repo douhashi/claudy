@@ -34,7 +34,8 @@
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "locales"
   ],
   "repository": {
     "type": "git",
