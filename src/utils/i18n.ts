@@ -2,7 +2,7 @@ import i18next from 'i18next';
 import Backend from 'i18next-fs-backend';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs-extra';
+import { existsSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +20,7 @@ function findPackageRoot(): string {
   // 最大5階層まで遡って package.json を探す
   for (let i = 0; i < 5; i++) {
     const packageJsonPath = path.join(currentDir, 'package.json');
-    if (fs.existsSync(packageJsonPath)) {
+    if (existsSync(packageJsonPath)) {
       return currentDir;
     }
     currentDir = path.dirname(currentDir);
@@ -48,7 +48,7 @@ export async function initI18n(): Promise<void> {
     // 実際のファイルパスを確認
     const testPath = localesPath.replace('{{lng}}', 'en').replace('{{ns}}', 'common');
     console.log('  Test file path:', testPath);
-    console.log('  Test file exists:', fs.existsSync(testPath));
+    console.log('  Test file exists:', existsSync(testPath));
   }
 
   await i18next
