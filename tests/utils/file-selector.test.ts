@@ -11,6 +11,7 @@ import {
   findUserClaudeFiles,
   formatFilePath,
   selectFilesInteractively,
+  selectFilesWithCheckbox,
   performFileSelection,
   FileSearchResult,
 } from '../../src/utils/file-selector';
@@ -284,8 +285,72 @@ describe('file-selector', () => {
     });
   });
   
+  describe('selectFilesWithCheckbox', () => {
+    it('should use default selection function correctly', async () => {
+      const projectFiles: FileSearchResult = {
+        mainFiles: ['CLAUDE.md'],
+        referencedFiles: []
+      };
+      const userFiles: FileSearchResult = {
+        mainFiles: ['.claude/CLAUDE.md'],
+        referencedFiles: []
+      };
+      
+      // デフォルト選択関数: プロジェクトレベルのみ選択
+      const defaultSelection = (file: string, isUserLevel: boolean) => !isUserLevel;
+      
+      mockInquirer.prompt.mockResolvedValue({
+        selectedFiles: ['project:CLAUDE.md']  // プロジェクトファイルのみ選択
+      });
+      
+      const results = await selectFilesWithCheckbox(projectFiles, userFiles, homeDir, defaultSelection);
+      
+      // inquirer.promptの呼び出しを検証
+      const promptCall = mockInquirer.prompt.mock.calls[0][0];
+      const choices = promptCall.choices.filter((c: any) => c.value);
+      
+      // プロジェクトファイルはデフォルトでチェックされている
+      expect(choices.find((c: any) => c.value === 'project:CLAUDE.md').checked).toBe(true);
+      // ユーザーファイルはデフォルトでチェックされていない
+      expect(choices.find((c: any) => c.value === 'user:.claude/CLAUDE.md').checked).toBe(false);
+      
+      expect(results).toEqual([
+        { files: ['CLAUDE.md'], baseDir: testCwd }
+      ]);
+    });
+    
+    it('should show all files as checked without default selection function', async () => {
+      const projectFiles: FileSearchResult = {
+        mainFiles: ['CLAUDE.md'],
+        referencedFiles: []
+      };
+      const userFiles: FileSearchResult = {
+        mainFiles: ['.claude/CLAUDE.md'],
+        referencedFiles: []
+      };
+      
+      mockInquirer.prompt.mockResolvedValue({
+        selectedFiles: ['project:CLAUDE.md', 'user:.claude/CLAUDE.md']
+      });
+      
+      // デフォルト選択関数を指定しない場合
+      const results = await selectFilesWithCheckbox(projectFiles, userFiles, homeDir);
+      
+      // inquirer.promptの呼び出しを検証
+      const promptCall = mockInquirer.prompt.mock.calls[0][0];
+      const choices = promptCall.choices.filter((c: any) => c.value);
+      
+      // すべてのファイルがデフォルトでチェックされている
+      choices.forEach((choice: any) => {
+        expect(choice.checked).toBe(true);
+      });
+      
+      expect(results).toHaveLength(2);
+    });
+  });
+  
   describe('performFileSelection', () => {
-    it('should perform complete file selection flow', async () => {
+    it('should perform complete file selection flow with direct checkbox UI', async () => {
       // 明示的にmocksをクリア
       vi.clearAllMocks();
       
@@ -299,10 +364,15 @@ describe('file-selector', () => {
       // ユーザーファイルは存在しない
       mockFs.pathExists.mockResolvedValue(false);
       
-      // プロジェクトファイルのみを選択
-      mockInquirer.prompt.mockResolvedValue({ selection: 'project' });
+      // チェックボックスでプロジェクトファイルが選択される
+      mockInquirer.prompt.mockResolvedValue({ 
+        selectedFiles: ['project:CLAUDE.md']
+      });
       
       const results = await performFileSelection();
+      
+      // 1回だけprompが呼ばれる（グループ選択なし、直接チェックボックス）
+      expect(mockInquirer.prompt).toHaveBeenCalledTimes(1);
       
       expect(results).toHaveLength(1);
       expect(results[0]).toEqual({

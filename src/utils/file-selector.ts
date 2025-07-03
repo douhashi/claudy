@@ -237,6 +237,160 @@ async function selectGroup(hasProjectFiles: boolean, hasUserFiles: boolean): Pro
 }
 
 /**
+ * チェックボックス付きでファイルを選択（デフォルト選択状態をサポート）
+ * @param projectFiles - プロジェクトレベルのファイル情報
+ * @param userFiles - ユーザーレベルのファイル情報
+ * @param userBaseDir - ユーザーレベルの基準ディレクトリ
+ * @param defaultSelection - デフォルトの選択状態を決定する関数
+ * @returns 選択されたファイルの情報
+ * @throws {ClaudyError} ファイルが見つからない場合
+ */
+export async function selectFilesWithCheckbox(
+  projectFiles: FileSearchResult,
+  userFiles: FileSearchResult,
+  userBaseDir: string,
+  defaultSelection?: (file: string, isUserLevel: boolean, isReference: boolean) => boolean
+): Promise<FileSelectionResult[]> {
+  const results: FileSelectionResult[] = [];
+  const choices: Array<FileChoice | typeof inquirer.Separator.prototype> = [];
+  
+  // デフォルト選択関数（指定されていない場合はすべて選択）
+  const shouldCheck = defaultSelection || ((): boolean => true);
+  
+  // プロジェクトレベルのメインファイル
+  if (projectFiles.mainFiles.length > 0) {
+    choices.push(new inquirer.Separator('--- プロジェクトレベル ---'))
+    
+    for (const file of projectFiles.mainFiles) {
+      choices.push({
+        name: formatFilePath(file, process.cwd(), false),
+        value: `project:${file}`,
+        checked: shouldCheck(file, false, false),
+      });
+    }
+  }
+  
+  // プロジェクトレベルの参照ファイル
+  if (projectFiles.referencedFiles.length > 0) {
+    if (projectFiles.mainFiles.length > 0) {
+      choices.push(new inquirer.Separator(' '));
+    }
+    
+    choices.push(new inquirer.Separator('--- 参照ファイル (プロジェクト) ---'));
+    
+    for (const refFile of projectFiles.referencedFiles) {
+      const referredFromText = refFile.referredFrom.map(from => 
+        formatFilePath(from, process.cwd(), false)
+      ).join(', ');
+      
+      choices.push({
+        name: `${formatFilePath(refFile.path, process.cwd(), false)} (参照元: ${referredFromText})`,
+        value: `project:${refFile.path}`,
+        checked: shouldCheck(refFile.path, false, true),
+      });
+    }
+  }
+  
+  // ユーザーレベルのメインファイル
+  if (userFiles.mainFiles.length > 0) {
+    if (projectFiles.mainFiles.length > 0 || projectFiles.referencedFiles.length > 0) {
+      choices.push(new inquirer.Separator(' '));
+    }
+    
+    choices.push(new inquirer.Separator('--- ユーザーレベル ---'));
+    
+    for (const file of userFiles.mainFiles) {
+      choices.push({
+        name: formatFilePath(file, userBaseDir, true),
+        value: `user:${file}`,
+        checked: shouldCheck(file, true, false),
+      });
+    }
+  }
+  
+  // ユーザーレベルの参照ファイル
+  if (userFiles.referencedFiles.length > 0) {
+    if (userFiles.mainFiles.length > 0) {
+      choices.push(new inquirer.Separator(' '));
+    }
+    
+    choices.push(new inquirer.Separator('--- 参照ファイル (ユーザー) ---'));
+    
+    for (const refFile of userFiles.referencedFiles) {
+      const referredFromText = refFile.referredFrom.map(from => 
+        formatFilePath(from, userBaseDir, true)
+      ).join(', ');
+      
+      choices.push({
+        name: `${formatFilePath(refFile.path, userBaseDir, true)} (参照元: ${referredFromText})`,
+        value: `user:${refFile.path}`,
+        checked: shouldCheck(refFile.path, true, true),
+      });
+    }
+  }
+  
+  if (choices.length === 0) {
+    throw new ClaudyError(
+      'No Claude-related files found',
+      ErrorCodes.NO_FILES_FOUND,
+      { searchDirs: [process.cwd(), userBaseDir] }
+    );
+  }
+  
+  // ファイル選択UI表示
+  const { selectedFiles } = await inquirer.prompt<{ selectedFiles: string[] }>({
+    type: 'checkbox',
+    name: 'selectedFiles',
+    message: 'ファイルを選択してください (スペースで選択/解除、Enterで確定):',
+    choices,
+    pageSize: 15,
+    validate: (input: unknown): boolean | string => {
+      const selectedItems = input as string[];
+      if (!selectedItems || selectedItems.length === 0) {
+        return '少なくとも1つのファイルを選択してください';
+      }
+      return true;
+    },
+  });
+  
+  // 選択されたファイルを分類（ヘッダーや区切り文字を除外）
+  const selectedProjectFiles: string[] = [];
+  const selectedUserFiles: string[] = [];
+  
+  for (const selected of selectedFiles) {
+    // ヘッダーや区切り文字をスキップ
+    if (selected.includes('-header') || selected.includes('separator')) {
+      continue;
+    }
+    
+    if (selected.startsWith('project:')) {
+      selectedProjectFiles.push(selected.substring(8));
+    } else if (selected.startsWith('user:')) {
+      selectedUserFiles.push(selected.substring(5));
+    }
+  }
+  
+  if (selectedProjectFiles.length > 0) {
+    results.push({
+      files: selectedProjectFiles,
+      baseDir: process.cwd(),
+    });
+  }
+  
+  if (selectedUserFiles.length > 0) {
+    results.push({
+      files: selectedUserFiles,
+      baseDir: userBaseDir,
+    });
+  }
+  
+  const totalFiles = selectedProjectFiles.length + selectedUserFiles.length;
+  logger.info(t('common:fileSelection.filesSelected', { count: totalFiles }));
+  
+  return results;
+}
+
+/**
  * インタラクティブにファイルを選択
  * @param projectFiles - プロジェクトレベルのファイル情報
  * @param userFiles - ユーザーレベルのファイル情報
@@ -461,8 +615,15 @@ export async function performFileSelection(): Promise<FileSelectionResult[]> {
     const { files: userFiles, baseDir: userBaseDir } = await findUserClaudeFiles(true);
     logger.debug(t('common:fileSelection.userLevelDebug', { mainCount: userFiles.mainFiles.length, refCount: userFiles.referencedFiles.length }));
     
-    // インタラクティブに選択
-    return await selectFilesInteractively(projectFiles, userFiles, userBaseDir);
+    // デフォルト選択ロジック：
+    // - プロジェクトレベルのファイル（メイン・参照とも）は選択
+    // - ユーザーレベルのファイルは選択しない
+    const defaultSelection = (_file: string, isUserLevel: boolean, _isReference: boolean): boolean => {
+      return !isUserLevel; // プロジェクトレベルのみデフォルトで選択
+    };
+    
+    // 直接チェックボックス付きファイル選択UIを表示
+    return await selectFilesWithCheckbox(projectFiles, userFiles, userBaseDir, defaultSelection);
   } catch (error) {
     if (error instanceof ClaudyError) {
       throw error;
