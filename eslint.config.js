@@ -29,6 +29,14 @@ export default [
           leadingUnderscore: 'allow'
         },
         {
+          selector: 'variable',
+          filter: {
+            regex: '^(__filename|__dirname)$',
+            match: true
+          },
+          format: null
+        },
+        {
           selector: 'function',
           format: ['camelCase']
         },

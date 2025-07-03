@@ -31,7 +31,13 @@
       "currentDirDebug": "Current directory: {{dir}}",
       "foundFilesDebug": "Found files: {{files}}",
       "savePathDebug": "Save path: {{path}}",
-      "deprecatedInteractive": "Note: -i/--interactive option is deprecated. Interactive mode is enabled by default."
+      "deprecatedInteractive": "Note: -i/--interactive option is deprecated. Interactive mode is enabled by default.",
+      "setName": "Set name: \"{{name}}\"",
+      "savePath": "Save path: {{path}}",
+      "loadCommand": "  $ claudy load {{name}}",
+      "fileListItem": "  - {{prefix}}{{file}}",
+      "projectLevel": "  - Project level: {{count}} file(s)",
+      "userLevel": "  - User level: {{count}} file(s)"
     }
   },
   "load": {
@@ -53,7 +59,26 @@
       "rollbackStarted": "Error occurred. Starting rollback...",
       "rollbackCompleted": "Rollback completed",
       "setNotFound": "Set '{{name}}' not found",
-      "loadError": "An error occurred while loading the configuration set"
+      "loadError": "An error occurred while loading the configuration set",
+      "filesToLoad": "Files to load: {{count}}",
+      "existingFiles": "The following files already exist:",
+      "fileListItem": "  - {{file}}",
+      "cancelled": "Load cancelled",
+      "projectLevelLabel": "\nProject level (current directory):",
+      "userLevelLabel": "\nUser level (home directory):",
+      "userFileListItem": "  - ~/{{file}}",
+      "backupFilesLabel": "\nBackup files:",
+      "backupFileListItem": "  - {{file}}.bak",
+      "creatingBackup": "Creating backup: {{file}} -> {{file}}.bak",
+      "expandedFile": "Expanded: {{prefix}}{{file}}",
+      "expandFailed": "Failed to expand: {{prefix}}{{file}} - {{error}}",
+      "expandErrors": "Errors occurred while expanding files",
+      "rollbackFile": "Rollback: {{file}}",
+      "rollbackFailed": "Rollback failed: {{file}}",
+      "conflictPrompt": "How would you like to handle existing files?",
+      "backupChoice": "Create backup and continue",
+      "overwriteChoice": "Overwrite existing files",
+      "cancelChoice": "Cancel"
     }
   },
   "list": {
@@ -91,7 +116,10 @@
       "success": "Successfully deleted set '{{name}}'",
       "cancelled": "Deletion cancelled",
       "setNotFound": "Set '{{name}}' not found",
-      "toSeeCurrentSets": "To see current sets:"
+      "toSeeCurrentSets": "To see current sets:",
+      "setToDelete": "Set to delete: {{name}}",
+      "setPath": "Set path: {{path}}",
+      "listCommand": "  $ claudy list"
     }
   },
   "init": {

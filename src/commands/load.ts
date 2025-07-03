@@ -73,33 +73,33 @@ export async function executeLoadCommand(name: string, options: LoadOptions): Pr
 
     // 展開対象ファイルの取得
     const filesWithScope = await getSetFiles(setDir);
-    logger.debug(`Files to load: ${filesWithScope.length}`);
+    logger.debug(t('commands:load.messages.filesToLoad', { count: filesWithScope.length }));
 
     // 既存ファイルとの衝突チェック
     const conflicts = await checkConflicts(filesWithScope);
     
     if (conflicts.length > 0 && !options.force) {
-      logger.warn('The following files already exist:');
+      logger.warn(t('commands:load.messages.existingFiles'));
       conflicts.forEach(file => {
-        logger.warn(`  - ${file}`);
+        logger.warn(t('commands:load.messages.fileListItem', { file }));
       });
 
       const answer = await inquirer.prompt<ConflictAction>([
         {
           type: 'list',
           name: 'action',
-          message: 'How would you like to handle existing files?',
+          message: t('commands:load.messages.conflictPrompt'),
           choices: [
-            { name: 'Create backup and continue', value: 'backup' },
-            { name: 'Overwrite existing files', value: 'overwrite' },
-            { name: 'Cancel', value: 'cancel' }
+            { name: t('commands:load.messages.backupChoice'), value: 'backup' },
+            { name: t('commands:load.messages.overwriteChoice'), value: 'overwrite' },
+            { name: t('commands:load.messages.cancelChoice'), value: 'cancel' }
           ],
           default: 'backup'
         }
       ]);
 
       if (answer.action === 'cancel') {
-        logger.info('Load cancelled');
+        logger.info(t('commands:load.messages.cancelled'));
         return;
       }
 
@@ -119,23 +119,23 @@ export async function executeLoadCommand(name: string, options: LoadOptions): Pr
     const userFiles = filesWithScope.filter(f => f.scope === 'user');
     
     if (projectFiles.length > 0) {
-      logger.info(`\nProject level (current directory):`);
+      logger.info(t('commands:load.messages.projectLevelLabel'));
       projectFiles.forEach(({ file }) => {
-        logger.info(`  - ${file}`);
+        logger.info(t('commands:load.messages.fileListItem', { file }));
       });
     }
     
     if (userFiles.length > 0) {
-      logger.info(`\nUser level (home directory):`);
+      logger.info(t('commands:load.messages.userLevelLabel'));
       userFiles.forEach(({ file }) => {
-        logger.info(`  - ~/${file}`);
+        logger.info(t('commands:load.messages.userFileListItem', { file }));
       });
     }
     
     if (conflicts.length > 0) {
-      logger.info('\nBackup files:');
+      logger.info(t('commands:load.messages.backupFilesLabel'));
       conflicts.forEach(file => {
-        logger.info(`  - ${file}.bak`);
+        logger.info(t('commands:load.messages.backupFileListItem', { file }));
       });
     }
   } catch (error) {
@@ -257,7 +257,7 @@ async function createBackups(filesWithScope: FileWithScope[], conflictFiles: str
         ErrorCodes.BACKUP_FAILED,
         targetPath
       );
-      logger.debug(`Creating backup: ${conflictFile} -> ${conflictFile}.bak`);
+      logger.debug(t('commands:load.messages.creatingBackup', { file: conflictFile }));
     } catch (error) {
       if (error instanceof ClaudyError) {
         const details = { 
@@ -309,16 +309,16 @@ async function expandFiles(filesWithScope: FileWithScope[]): Promise<void> {
       );
       
       expandedFiles.push({ file, targetPath });
-      logger.debug(`Expanded: ${scope === 'user' ? '~/' : ''}${file}`);
+      logger.debug(t('commands:load.messages.expandedFile', { prefix: scope === 'user' ? '~/' : '', file }));
     } catch (error) {
       errors.push({ file: `${scope === 'user' ? '~/' : ''}${file}`, error });
-      logger.debug(`Failed to expand: ${scope === 'user' ? '~/' : ''}${file} - ${error}`);
+      logger.debug(t('commands:load.messages.expandFailed', { prefix: scope === 'user' ? '~/' : '', file, error: String(error) }));
     }
   }
 
   // エラーがある場合はロールバック
   if (errors.length > 0) {
-    logger.error('Errors occurred while expanding files');
+    logger.error(t('commands:load.messages.expandErrors'));
     logger.info(t('commands:load.messages.rollbackStarted'));
     
     // 展開済みファイルを削除（ロールバック）
@@ -330,10 +330,10 @@ async function expandFiles(filesWithScope: FileWithScope[]): Promise<void> {
           ErrorCodes.FILE_DELETE_ERROR,
           targetPath
         );
-        logger.debug(`Rollback: ${file}`);
+        logger.debug(t('commands:load.messages.rollbackFile', { file }));
       } catch {
         rollbackErrors.push(file);
-        logger.warn(`Rollback failed: ${file}`);
+        logger.warn(t('commands:load.messages.rollbackFailed', { file }));
       }
     }
 
