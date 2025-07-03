@@ -1,6 +1,6 @@
 {
   "name": "claudy",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "CLI tool for managing Claude AI configuration files (CLAUDE.md)",
   "type": "module",
   "main": "dist/index.js",
@@ -34,7 +34,8 @@
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "locales"
   ],
   "repository": {
     "type": "git",
