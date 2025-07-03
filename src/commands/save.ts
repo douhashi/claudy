@@ -251,7 +251,7 @@ export async function executeSaveCommand(
     if (error instanceof ClaudyError) {
       throw error;
     }
-    throw wrapError(error, ErrorCodes.SAVE_ERROR, 'セットの保存中にエラーが発生しました', { setName: name });
+    throw wrapError(error, ErrorCodes.SAVE_ERROR, t('errors:operation.saveError'), { setName: name });
   }
 }
 

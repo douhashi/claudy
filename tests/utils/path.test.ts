@@ -1,10 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll } from 'vitest';
 import * as path from '../../src/utils/path';
 import os from 'os';
 import nodePath from 'path';
+import { initI18n } from '../../src/utils/i18n.js';
 
 describe('path utils', () => {
   const originalEnv = process.env;
+
+  beforeAll(async () => {
+    await initI18n();
+  });
 
   beforeEach(() => {
     process.env = { ...originalEnv };
@@ -145,12 +150,12 @@ describe('path utils', () => {
     });
 
     it('should throw error for empty set name', () => {
-      expect(() => path.getSetDir('')).toThrow('セット名を指定してください');
+      expect(() => path.getSetDir('')).toThrow('Set name is required');
     });
 
     it('should throw error for path traversal attempts', () => {
-      expect(() => path.getSetDir('../etc')).toThrow('無効なセット名です');
-      expect(() => path.getSetDir('test/../../../etc')).toThrow('無効なセット名です');
+      expect(() => path.getSetDir('../etc')).toThrow('Invalid set name');
+      expect(() => path.getSetDir('test/../../../etc')).toThrow('Invalid set name');
     });
   });
 
@@ -164,41 +169,41 @@ describe('path utils', () => {
     });
 
     it('should reject empty set names', () => {
-      expect(() => path.validateSetName('')).toThrow('セット名を指定してください');
-      expect(() => path.validateSetName('  ')).toThrow('セット名を指定してください');
+      expect(() => path.validateSetName('')).toThrow('Set name is required');
+      expect(() => path.validateSetName('  ')).toThrow('Set name is required');
     });
 
     it('should reject set names with path traversal', () => {
-      expect(() => path.validateSetName('../etc')).toThrow('無効なセット名です');
-      expect(() => path.validateSetName('test/../../../etc')).toThrow('無効なセット名です');
-      expect(() => path.validateSetName('/absolute/path')).toThrow('無効なセット名です');
+      expect(() => path.validateSetName('../etc')).toThrow('Invalid set name');
+      expect(() => path.validateSetName('test/../../../etc')).toThrow('Invalid set name');
+      expect(() => path.validateSetName('/absolute/path')).toThrow('Invalid set name');
     });
 
     it('should reject set names with invalid characters', () => {
-      expect(() => path.validateSetName('test:name')).toThrow('セット名に使用できない文字が含まれています');
-      expect(() => path.validateSetName('test*name')).toThrow('セット名に使用できない文字が含まれています');
-      expect(() => path.validateSetName('test?name')).toThrow('セット名に使用できない文字が含まれています');
-      expect(() => path.validateSetName('test<name')).toThrow('セット名に使用できない文字が含まれています');
-      expect(() => path.validateSetName('test>name')).toThrow('セット名に使用できない文字が含まれています');
-      expect(() => path.validateSetName('test|name')).toThrow('セット名に使用できない文字が含まれています');
-      expect(() => path.validateSetName('test"name')).toThrow('セット名に使用できない文字が含まれています');
+      expect(() => path.validateSetName('test:name')).toThrow('Set name contains invalid characters');
+      expect(() => path.validateSetName('test*name')).toThrow('Set name contains invalid characters');
+      expect(() => path.validateSetName('test?name')).toThrow('Set name contains invalid characters');
+      expect(() => path.validateSetName('test<name')).toThrow('Set name contains invalid characters');
+      expect(() => path.validateSetName('test>name')).toThrow('Set name contains invalid characters');
+      expect(() => path.validateSetName('test|name')).toThrow('Set name contains invalid characters');
+      expect(() => path.validateSetName('test"name')).toThrow('Set name contains invalid characters');
     });
 
     it('should reject reserved names', () => {
-      expect(() => path.validateSetName('CON')).toThrow('"CON"は予約語のため使用できません');
-      expect(() => path.validateSetName('PRN')).toThrow('"PRN"は予約語のため使用できません');
-      expect(() => path.validateSetName('profiles')).toThrow('"profiles"は予約語のため使用できません');
+      expect(() => path.validateSetName('CON')).toThrow('"CON" is a reserved word and cannot be used');
+      expect(() => path.validateSetName('PRN')).toThrow('"PRN" is a reserved word and cannot be used');
+      expect(() => path.validateSetName('profiles')).toThrow('"profiles" is a reserved word and cannot be used');
     });
 
     it('should reject set names starting with dot', () => {
-      expect(() => path.validateSetName('.hidden')).toThrow('セット名はドットで始めることはできません');
-      expect(() => path.validateSetName('test/.hidden')).toThrow('セット名はドットで始めることはできません');
+      expect(() => path.validateSetName('.hidden')).toThrow('Set name cannot start with a dot');
+      expect(() => path.validateSetName('test/.hidden')).toThrow('Set name cannot start with a dot');
     });
 
     it('should reject set names with empty parts', () => {
-      expect(() => path.validateSetName('test//name')).toThrow('セット名に空のパートが含まれています');
-      expect(() => path.validateSetName('test/')).toThrow('セット名に空のパートが含まれています');
-      expect(() => path.validateSetName('/test')).toThrow('無効なセット名です'); // Absolute path
+      expect(() => path.validateSetName('test//name')).toThrow('Set name contains empty parts');
+      expect(() => path.validateSetName('test/')).toThrow('Set name contains empty parts');
+      expect(() => path.validateSetName('/test')).toThrow('Invalid set name'); // Absolute path
     });
   });
 });

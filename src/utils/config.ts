@@ -42,7 +42,7 @@ export async function initializeClaudyDir(): Promise<void> {
 
   if (!configExists) {
     await writeJson(configPath, DEFAULT_CONFIG);
-    logger.success('claudy configuration initialized (XDG Base Directory compliant)');
+    logger.success(t('common:config.initialized'));
   }
 }
 

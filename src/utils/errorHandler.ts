@@ -1,6 +1,7 @@
 import { logger } from './logger.js';
 import { ClaudyError } from '../types/index.js';
 import { ErrorCode, formatErrorMessage, wrapError } from '../types/errors.js';
+import { t } from './i18n.js';
 
 // リトライ可能なエラーコード
 const RETRYABLE_ERROR_CODES: ErrorCode[] = [
@@ -71,7 +72,7 @@ export async function withRetry<T>(
       // 最後の試行でなければ待機
       if (attempt < maxAttempts) {
         const waitTime = backoff ? delay * attempt : delay;
-        logger.warn(`エラーが発生しました。${waitTime}ms後に再試行します... (${attempt}/${maxAttempts})`);
+        logger.warn(t('errors:operation.retryAfterError', { waitTime, attempt, maxAttempts }));
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
@@ -108,13 +109,14 @@ export async function handleFileOperation<T>(
  * @throws Never - プロセスを終了します
  */
 export function handlePermissionError(_error: NodeJS.ErrnoException, path?: string): never {
-  const message = `ファイルまたはディレクトリへのアクセスが拒否されました${path ? `: ${path}` : ''}`;
+  const message = t('errors:permission.fileAccessDenied', { path: path ? `: ${path}` : '' });
   
   logger.error(message);
-  logger.info('\n解決策:');
-  logger.info('  1. ファイルまたはディレクトリの権限を確認してください');
-  logger.info('  2. 必要に応じて chmod コマンドで権限を変更してください');
-  logger.info('  3. システムディレクトリの場合は sudo を使用してください');
+  logger.info('\n' + t('errors:solutionHeader') + ':');
+  const solutions = t('errors:solutions.permissionDenied', { returnObjects: true }) as string[];
+  solutions.forEach((solution, index) => {
+    logger.info(`  ${index + 1}. ${solution}`);
+  });
   
   process.exit(1);
 }
@@ -126,13 +128,14 @@ export function handlePermissionError(_error: NodeJS.ErrnoException, path?: stri
  * @throws Never - プロセスを終了します
  */
 export function handleDiskSpaceError(_error: NodeJS.ErrnoException, path?: string): never {
-  const message = `ディスク容量が不足しています${path ? `: ${path}` : ''}`;
+  const message = t('errors:filesystem.diskFullWithPath', { path: path ? `: ${path}` : '' });
   
   logger.error(message);
-  logger.info('\n解決策:');
-  logger.info('  1. df -h コマンドでディスク容量を確認してください');
-  logger.info('  2. 不要なファイルを削除してください');
-  logger.info('  3. 別のディスクに保存先を変更してください');
+  logger.info('\n' + t('errors:solutionHeader') + ':');
+  const solutions = t('errors:solutions.diskFull', { returnObjects: true }) as string[];
+  solutions.forEach((solution, index) => {
+    logger.info(`  ${index + 1}. ${solution}`);
+  });
   
   process.exit(1);
 }
@@ -148,13 +151,13 @@ export function getUserFriendlyMessage(error: ClaudyError): string {
   
   switch (error.code) {
     case 'VAL_INVALID_SET_NAME':
-      return 'セット名には英数字、ハイフン、アンダースコアのみ使用できます。';
+      return t('common:validation.invalidName');
     case 'RES_SET_NOT_FOUND':
-      return `セット "${details?.setName || '不明'}" が見つかりません。"claudy list" で利用可能なセットを確認してください。`;
+      return t('errors:resource.setNotFoundDetail', { setName: details?.setName || 'unknown' });
     case 'PERM_DENIED':
-      return 'ファイルへのアクセス権限がありません。権限を確認するか、管理者として実行してください。';
+      return t('errors:permission.denied');
     case 'FS_DISK_FULL':
-      return 'ディスク容量が不足しています。空き容量を確保してから再試行してください。';
+      return t('errors:filesystem.diskFull');
     default:
       return error.message;
   }

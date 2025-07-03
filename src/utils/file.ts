@@ -3,6 +3,7 @@ const fs = fsExtra;
 import path from 'path';
 import { ClaudyError } from '../types/index.js';
 import { logger } from './logger.js';
+import { t } from './i18n.js';
 
 /**
  * ディレクトリを確保（存在しない場合は作成）
@@ -12,7 +13,7 @@ import { logger } from './logger.js';
 export async function ensureDir(dirPath: string): Promise<void> {
   try {
     await fs.ensureDir(dirPath);
-    logger.debug(`ディレクトリを確保しました: ${dirPath}`);
+    logger.debug(t('common:debug.directorySecured', { dirPath }));
   } catch (error) {
     throw new ClaudyError(
       `ディレクトリの作成に失敗しました: ${dirPath}`,
@@ -45,7 +46,7 @@ export async function fileExists(filePath: string): Promise<boolean> {
 export async function readFile(filePath: string): Promise<string> {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
-    logger.debug(`ファイルを読み込みました: ${filePath}`);
+    logger.debug(t('common:debug.fileRead', { filePath }));
     return content;
   } catch (error) {
     throw new ClaudyError(
@@ -66,7 +67,7 @@ export async function writeFile(filePath: string, content: string): Promise<void
   try {
     await fs.ensureDir(path.dirname(filePath));
     await fs.writeFile(filePath, content, 'utf-8');
-    logger.debug(`ファイルを書き込みました: ${filePath}`);
+    logger.debug(t('common:debug.fileWritten', { filePath }));
   } catch (error) {
     throw new ClaudyError(
       `ファイルの書き込みに失敗しました: ${filePath}`,
@@ -86,7 +87,7 @@ export async function copyFile(src: string, dest: string): Promise<void> {
   try {
     await fs.ensureDir(path.dirname(dest));
     await fs.copy(src, dest);
-    logger.debug(`ファイルをコピーしました: ${src} → ${dest}`);
+    logger.debug(t('common:debug.fileCopied', { src, dest }));
   } catch (error) {
     throw new ClaudyError(
       `ファイルのコピーに失敗しました: ${src} → ${dest}`,
@@ -104,7 +105,7 @@ export async function copyFile(src: string, dest: string): Promise<void> {
 export async function removeFile(filePath: string): Promise<void> {
   try {
     await fs.remove(filePath);
-    logger.debug(`ファイルを削除しました: ${filePath}`);
+    logger.debug(t('common:debug.fileDeleted', { filePath }));
   } catch (error) {
     throw new ClaudyError(
       `ファイルの削除に失敗しました: ${filePath}`,
@@ -168,7 +169,7 @@ export async function copyFileOrDir(src: string, dest: string): Promise<void> {
   try {
     await fs.ensureDir(path.dirname(dest));
     await fs.copy(src, dest, { overwrite: false });
-    logger.debug(`ディレクトリをコピーしました: ${src} → ${dest}`);
+    logger.debug(t('common:debug.directoryCopied', { src, dest }));
   } catch (error) {
     throw new ClaudyError(
       `ディレクトリのコピーに失敗しました: ${src} → ${dest}`,

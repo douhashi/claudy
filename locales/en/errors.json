@@ -13,20 +13,23 @@
     "dirNotFound": "Directory not found.",
     "homeDirNotFound": "Home directory not found.",
     "noFilesFound": "No files to save were found.",
-    "noConfigFiles": "Configuration files not found."
+    "noConfigFiles": "Configuration files not found.",
+    "setNotFoundDetail": "Set \"{{setName}}\" not found. Use 'claudy list' to check available sets."
   },
   "permission": {
     "denied": "Access denied.",
     "readDenied": "No read permission for the file.",
     "writeDenied": "No write permission for the file.",
-    "executeDenied": "No execute permission for the file."
+    "executeDenied": "No execute permission for the file.",
+    "fileAccessDenied": "Access denied to file or directory{{path}}"
   },
   "filesystem": {
     "diskFull": "Insufficient disk space.",
     "fileLocked": "File is locked by another process.",
     "pathTooLong": "Path is too long.",
     "invalidFileName": "Invalid file name.",
-    "symlinkLoop": "Symbolic link loop detected."
+    "symlinkLoop": "Symbolic link loop detected.",
+    "diskFullWithPath": "Insufficient disk space{{path}}"
   },
   "operation": {
     "saveError": "Failed to save the set.",
@@ -37,7 +40,8 @@
     "backupFailed": "Failed to create backup.",
     "expandFailed": "Failed to expand files.",
     "rollbackFailed": "Failed to rollback.",
-    "migrationError": "Failed to migrate configuration."
+    "migrationError": "Failed to migrate configuration.",
+    "retryAfterError": "An error occurred. Retrying in {{waitTime}}ms... ({{attempt}}/{{maxAttempts}})"
   },
   "file": {
     "readError": "Failed to read file.",

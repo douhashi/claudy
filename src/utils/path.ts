@@ -2,6 +2,7 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 import { ClaudyError } from '../types/index.js';
+import { t } from './i18n.js';
 
 /**
  * ホームディレクトリを取得
@@ -11,7 +12,7 @@ import { ClaudyError } from '../types/index.js';
 export function getHomeDir(): string {
   const homeDir = os.homedir();
   if (!homeDir) {
-    throw new ClaudyError('ホームディレクトリが見つかりません', 'HOME_DIR_NOT_FOUND');
+    throw new ClaudyError(t('common:path.homeNotFound'), 'HOME_DIR_NOT_FOUND');
   }
   return homeDir;
 }
@@ -163,13 +164,13 @@ export function getSetDir(setName: string): string {
  */
 export function validateSetName(setName: string): void {
   if (!setName || setName.trim() === '') {
-    throw new ClaudyError('セット名を指定してください', 'INVALID_SET_NAME');
+    throw new ClaudyError(t('common:path.setNameRequired'), 'INVALID_SET_NAME');
   }
 
   // パストラバーサル攻撃の防止
   const normalizedName = path.normalize(setName);
   if (normalizedName.includes('..') || path.isAbsolute(normalizedName)) {
-    throw new ClaudyError('無効なセット名です', 'INVALID_SET_NAME', { setName });
+    throw new ClaudyError(t('common:path.invalidSetName'), 'INVALID_SET_NAME', { setName });
   }
 
   // OSごとの予約語と特殊文字のチェック
@@ -180,21 +181,21 @@ export function validateSetName(setName: string): void {
   const parts = setName.split('/');
   for (const part of parts) {
     if (!part || part.trim() === '') {
-      throw new ClaudyError('セット名に空のパートが含まれています', 'INVALID_SET_NAME', { setName });
+      throw new ClaudyError(t('common:path.emptyPartInName'), 'INVALID_SET_NAME', { setName });
     }
     
     if (invalidChars.test(part)) {
-      throw new ClaudyError('セット名に使用できない文字が含まれています', 'INVALID_SET_NAME', { setName });
+      throw new ClaudyError(t('common:path.invalidCharacters'), 'INVALID_SET_NAME', { setName });
     }
     
     const upperPart = part.toUpperCase();
     if (invalidNames.includes(upperPart)) {
-      throw new ClaudyError(`"${part}"は予約語のため使用できません`, 'INVALID_SET_NAME', { setName });
+      throw new ClaudyError(t('common:path.reservedWord', { part }), 'INVALID_SET_NAME', { setName });
     }
     
     // ドットで始まる名前の禁止
     if (part.startsWith('.')) {
-      throw new ClaudyError('セット名はドットで始めることはできません', 'INVALID_SET_NAME', { setName });
+      throw new ClaudyError(t('common:path.cannotStartWithDot'), 'INVALID_SET_NAME', { setName });
     }
   }
 }

@@ -31,7 +31,16 @@
     "searchingFiles": "Searching for Claude configuration files...",
     "patternError": "Error searching pattern \"{{pattern}}\": {{error}}",
     "projectLevelDebug": "Project level: {{mainCount}} main file(s), {{refCount}} referenced file(s) found",
-    "userLevelDebug": "User level: {{mainCount}} main file(s), {{refCount}} referenced file(s) found"
+    "userLevelDebug": "User level: {{mainCount}} main file(s), {{refCount}} referenced file(s) found",
+    "howToSelect": "Select file selection method:",
+    "bothFiles": "Both files (Project level + User level)",
+    "projectOnly": "Project level files only",
+    "userOnly": "User level files only",
+    "customSelect": "Custom selection (select files individually)",
+    "selectAllProject": "Select all project level files",
+    "selectAllUser": "Select all user level files",
+    "projectLevelSeparator": "--- Project level ---",
+    "errorSelecting": "Error occurred while selecting files"
   },
   "validation": {
     "invalidName": "Name can only contain alphanumeric characters, hyphens, and underscores"
@@ -53,6 +62,33 @@
     "legacyDetected": "Legacy configuration directory detected. Starting migration to new format...",
     "migrationError": "Error occurred during configuration migration:",
     "configLoadError": "Failed to load configuration",
-    "configSaveError": "Failed to save configuration"
+    "configSaveError": "Failed to save configuration",
+    "initialized": "claudy configuration initialized (XDG Base Directory compliant)"
+  },
+  "path": {
+    "homeNotFound": "Home directory not found",
+    "setNameRequired": "Set name is required",
+    "invalidSetName": "Invalid set name",
+    "emptyPartInName": "Set name contains empty parts",
+    "invalidCharacters": "Set name contains invalid characters",
+    "reservedWord": "\"{{part}}\" is a reserved word and cannot be used",
+    "cannotStartWithDot": "Set name cannot start with a dot"
+  },
+  "debug": {
+    "directorySecured": "Directory created: {{dirPath}}",
+    "fileRead": "File read: {{filePath}}",
+    "fileWritten": "File written: {{filePath}}",
+    "fileCopied": "File copied: {{src}} → {{dest}}",
+    "fileDeleted": "File deleted: {{filePath}}",
+    "directoryCopied": "Directory copied: {{src}} → {{dest}}",
+    "errorSearchingFiles": "Error searching user-level command files: {{error}}",
+    "setAccessFailed": "Cannot access set: {{setPath}} ({{code}})",
+    "accessDenied": "Access denied: {{path}}",
+    "extractedReferences": "Extracted references: {{references}}",
+    "referencePathResolved": "Reference path resolved: {{referencePath}} -> {{relativePath}}",
+    "referencePathFailed": "Failed to resolve reference path: {{referencePath}} - {{error}}",
+    "depthLimitReached": "Depth limit reached: {{filePath}} (depth={{depth}})",
+    "alreadyProcessed": "File already processed: {{filePath}}",
+    "fileReadError": "File read error: {{filePath}} - {{error}}"
   }
 }
