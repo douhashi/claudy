@@ -63,11 +63,11 @@ export async function executeDeleteCommand(
     // セット名のバリデーション
     validateSetName(name);
     
-    logger.debug(`Set to delete: ${name}`);
+    logger.debug(t('commands:delete.messages.setToDelete', { name }));
     
     // 新しい構造のセットパスを使用
     const setPath = getSetDir(name);
-    logger.debug(`Set path: ${setPath}`);
+    logger.debug(t('commands:delete.messages.setPath', { path: setPath }));
     
     // セットの存在確認
     if (!await existsSet(setPath)) {
@@ -102,7 +102,7 @@ export async function executeDeleteCommand(
     // 成功メッセージ
     logger.success(`✓ ${t('commands:delete.messages.success', { name })}`);
     logger.info('\n' + t('commands:delete.messages.toSeeCurrentSets'));
-    logger.info('  $ claudy list');
+    logger.info(t('commands:delete.messages.listCommand'));
     
   } catch (error) {
     if (error instanceof ClaudyError) {

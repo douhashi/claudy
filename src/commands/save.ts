@@ -216,8 +216,8 @@ export async function executeSaveCommand(
     
     // 成功メッセージ
     logger.success(`✓ ${t('commands:save.messages.savedFiles', { count: totalFiles })}`);
-    logger.info(`Set name: "${name}"`);
-    logger.info(`Save path: ${setPath}`);
+    logger.info(t('commands:save.messages.setName', { name }));
+    logger.info(t('commands:save.messages.savePath', { path: setPath }));
     
     // ファイル数の内訳を表示
     let projectFileCount = 0;
@@ -231,19 +231,19 @@ export async function executeSaveCommand(
     });
     
     if (projectFileCount > 0 && userFileCount > 0) {
-      logger.info(`  - Project level: ${projectFileCount} ${t('commands:save.messages.files', { count: projectFileCount })}`);
-      logger.info(`  - User level: ${userFileCount} ${t('commands:save.messages.files', { count: userFileCount })}`);
+      logger.info(t('commands:save.messages.projectLevel', { count: projectFileCount }));
+      logger.info(t('commands:save.messages.userLevel', { count: userFileCount }));
     }
     
     logger.info('\n' + t('commands:save.messages.nextCommand'));
-    logger.info(`  $ claudy load ${name}`);
+    logger.info(t('commands:save.messages.loadCommand', { name }));
     
     if (options.verbose) {
       logger.info('\n' + t('commands:save.messages.savedFilesList'));
       fileGroups.forEach(group => {
         const prefix = group.baseDir === process.cwd() ? './' : '~/';
         group.files.forEach(file => {
-          logger.info(`  - ${prefix}${file}`);
+          logger.info(t('commands:save.messages.fileListItem', { prefix, file }));
         });
       });
     }
