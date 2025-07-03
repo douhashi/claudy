@@ -79,7 +79,7 @@ async function getSetInfo(setPath: string, basePath: string): Promise<SetInfo | 
     // アクセスエラーの場合はnullを返す
     const systemError = error as NodeJS.ErrnoException;
     if (systemError.code === 'EACCES' || systemError.code === 'ENOENT') {
-      logger.debug(`セットへのアクセス不可: ${setPath} (${systemError.code})`);
+      logger.debug(t('common:debug.setAccessFailed', { setPath, code: systemError.code }));
       return null;
     }
     // その他のエラーは再スロー
@@ -117,7 +117,7 @@ async function countFiles(dirPath: string): Promise<number> {
       // アクセスエラーの場合はスキップ
       const systemError = error as NodeJS.ErrnoException;
       if (systemError.code === 'EACCES') {
-        logger.debug(`アクセス拒否: ${currentPath}`);
+        logger.debug(t('common:debug.accessDenied', { path: currentPath }));
         return;
       }
       throw error;
@@ -251,7 +251,7 @@ async function findSetsRecursive(dirPath: string, basePath: string, depth: numbe
   } catch (error) {
     const systemError = error as NodeJS.ErrnoException;
     if (systemError.code === 'EACCES') {
-      logger.debug(`アクセス拒否: ${dirPath}`);
+      logger.debug(t('common:debug.accessDenied', { path: dirPath }));
     } else {
       throw error;
     }

@@ -123,7 +123,7 @@ export async function findUserClaudeFiles(
     });
     mainFiles.push(...commandFiles.map(f => path.join('.claude', f)));
   } catch (error) {
-    logger.debug(`Error searching user-level command files: ${error}`);
+    logger.debug(t('common:debug.errorSearchingFiles', { error }));
   }
   
   // 参照ファイルを収集
@@ -208,27 +208,27 @@ async function selectGroup(hasProjectFiles: boolean, hasUserFiles: boolean): Pro
   
   if (hasProjectFiles && hasUserFiles) {
     choices.push(
-      { name: '両方のファイル（プロジェクトレベル + ユーザーレベル）', value: 'both' },
-      { name: 'プロジェクトレベルのファイルのみ', value: 'project' },
-      { name: 'ユーザーレベルのファイルのみ', value: 'user' },
-      { name: 'カスタム選択（個別にファイルを選択）', value: 'custom' }
+      { name: t('common:fileSelection.bothFiles'), value: 'both' },
+      { name: t('common:fileSelection.projectOnly'), value: 'project' },
+      { name: t('common:fileSelection.userOnly'), value: 'user' },
+      { name: t('common:fileSelection.customSelect'), value: 'custom' }
     );
   } else if (hasProjectFiles) {
     choices.push(
-      { name: 'プロジェクトレベルのファイルをすべて選択', value: 'project' },
-      { name: 'カスタム選択（個別にファイルを選択）', value: 'custom' }
+      { name: t('common:fileSelection.selectAllProject'), value: 'project' },
+      { name: t('common:fileSelection.customSelect'), value: 'custom' }
     );
   } else if (hasUserFiles) {
     choices.push(
-      { name: 'ユーザーレベルのファイルをすべて選択', value: 'user' },
-      { name: 'カスタム選択（個別にファイルを選択）', value: 'custom' }
+      { name: t('common:fileSelection.selectAllUser'), value: 'user' },
+      { name: t('common:fileSelection.customSelect'), value: 'custom' }
     );
   }
   
   const { selection } = await inquirer.prompt<{ selection: GroupSelectionOption }>({
     type: 'list',
     name: 'selection',
-    message: 'ファイルの選択方法を選んでください:',
+    message: t('common:fileSelection.howToSelect'),
     choices,
     default: hasProjectFiles && hasUserFiles ? 'both' : (hasProjectFiles ? 'project' : 'user'),
   });
@@ -469,7 +469,7 @@ export async function selectFilesInteractively(
   
   // プロジェクトレベルのメインファイル
   if (projectFiles.mainFiles.length > 0) {
-    choices.push(new inquirer.Separator('--- プロジェクトレベル ---'))
+    choices.push(new inquirer.Separator(t('common:fileSelection.projectLevelSeparator')))
     
     for (const file of projectFiles.mainFiles) {
       choices.push({
@@ -594,7 +594,7 @@ export async function selectFilesInteractively(
   }
   
   const totalFiles = selectedProjectFiles.length + selectedUserFiles.length;
-  logger.info(`✓ ${totalFiles}個のファイルを選択しました`);
+  logger.info(t('common:fileSelection.filesSelected', { count: totalFiles }));
   
   return results;
 }
@@ -628,6 +628,6 @@ export async function performFileSelection(): Promise<FileSelectionResult[]> {
     if (error instanceof ClaudyError) {
       throw error;
     }
-    throw wrapError(error, ErrorCodes.FILE_SELECTION_ERROR, 'ファイル選択中にエラーが発生しました');
+    throw wrapError(error, ErrorCodes.FILE_SELECTION_ERROR, t('common:fileSelection.errorSelecting'));
   }
 }

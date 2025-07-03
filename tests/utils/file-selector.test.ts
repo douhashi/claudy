@@ -189,12 +189,12 @@ describe('file-selector', () => {
       expect(mockInquirer.prompt).toHaveBeenCalledWith({
         type: 'list',
         name: 'selection',
-        message: 'ファイルの選択方法を選んでください:',
+        message: 'Select file selection method:',
         choices: expect.arrayContaining([
-          expect.objectContaining({ name: '両方のファイル（プロジェクトレベル + ユーザーレベル）', value: 'both' }),
-          expect.objectContaining({ name: 'プロジェクトレベルのファイルのみ', value: 'project' }),
-          expect.objectContaining({ name: 'ユーザーレベルのファイルのみ', value: 'user' }),
-          expect.objectContaining({ name: 'カスタム選択（個別にファイルを選択）', value: 'custom' })
+          expect.objectContaining({ name: 'Both files (Project level + User level)', value: 'both' }),
+          expect.objectContaining({ name: 'Project level files only', value: 'project' }),
+          expect.objectContaining({ name: 'User level files only', value: 'user' }),
+          expect.objectContaining({ name: 'Custom selection (select files individually)', value: 'custom' })
         ]),
         default: 'both'
       });

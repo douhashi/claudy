@@ -2,6 +2,7 @@ import fsExtra from 'fs-extra';
 const fs = fsExtra;
 import path from 'path';
 import { logger } from './logger.js';
+import { t } from './i18n.js';
 
 /**
  * 参照ファイル情報
@@ -30,7 +31,7 @@ export function extractFileReferences(content: string): string[] {
     }
   }
   
-  logger.debug(`抽出された参照: ${references.join(', ')}`);
+  logger.debug(t('common:debug.extractedReferences', { references: references.join(', ') }));
   return references;
 }
 
@@ -64,11 +65,11 @@ export async function resolveReferencePath(
     if (exists) {
       // baseDirからの相対パスに変換して返す
       const relativePath = path.relative(baseDir, resolvedPath);
-      logger.debug(`参照パス解決: ${referencePath} -> ${relativePath}`);
+      logger.debug(t('common:debug.referencePathResolved', { referencePath, relativePath }));
       return relativePath;
     }
   } catch (error) {
-    logger.debug(`参照パスの解決に失敗: ${referencePath} - ${error}`);
+    logger.debug(t('common:debug.referencePathFailed', { referencePath, error }));
   }
   
   return null;
@@ -92,14 +93,14 @@ export async function collectReferences(
 ): Promise<ReferencedFile[]> {
   // 深さ制限チェック
   if (depth >= maxDepth) {
-    logger.debug(`深さ制限に達しました: ${filePath} (depth=${depth})`);
+    logger.debug(t('common:debug.depthLimitReached', { filePath, depth }));
     return [];
   }
   
   // 循環参照チェック
   const normalizedPath = path.normalize(filePath);
   if (processedFiles.has(normalizedPath)) {
-    logger.debug(`既に処理済みのファイル: ${filePath}`);
+    logger.debug(t('common:debug.alreadyProcessed', { filePath }));
     return [];
   }
   
@@ -161,7 +162,7 @@ export async function collectReferences(
       }
     }
   } catch (error) {
-    logger.debug(`ファイル読み込みエラー: ${filePath} - ${error}`);
+    logger.debug(t('common:debug.fileReadError', { filePath, error }));
   }
   
   return referencedFiles;
