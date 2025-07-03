@@ -103,9 +103,8 @@ describe('loadコマンド', () => {
       });
       vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
         const cwdStr = options?.cwd?.toString() || '';
-        if (cwdStr.includes('/project')) {
-          if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
-          if (pattern === '.claude/**/*.md') return ['.claude/commands/test.md', '.claude/commands/deploy.md'];
+        if (pattern === '**/*' && cwdStr.includes('/project')) {
+          return ['CLAUDE.md', '.claude/commands/test.md', '.claude/commands/deploy.md'];
         }
         return [];
       });
@@ -132,7 +131,7 @@ describe('loadコマンド', () => {
         return Promise.reject(error);
       });
       vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        if (pattern === '**/*') return ['CLAUDE.md'];
         return [];
       });
       vi.mocked(inquirer.prompt).mockResolvedValue({ action: 'cancel' });
@@ -157,7 +156,7 @@ describe('loadコマンド', () => {
         return Promise.reject(new Error('Not found'));
       });
       vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        if (pattern === '**/*') return ['CLAUDE.md'];
         return [];
       });
       vi.mocked(copy).mockResolvedValue(undefined);
@@ -182,7 +181,7 @@ describe('loadコマンド', () => {
         return Promise.reject(new Error('Not found'));
       });
       vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        if (pattern === '**/*') return ['CLAUDE.md'];
         return [];
       });
       vi.mocked(inquirer.prompt).mockResolvedValue({ action: 'backup' });
@@ -210,7 +209,7 @@ describe('loadコマンド', () => {
         return Promise.reject(new Error('Not found'));
       });
       vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+        if (pattern === '**/*') return ['CLAUDE.md'];
         return [];
       });
       vi.mocked(inquirer.prompt).mockResolvedValue({ action: 'overwrite' });
@@ -236,8 +235,8 @@ describe('loadコマンド', () => {
         return Promise.reject(error);
       });
       vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
-        if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
-        if (pattern === '.claude/**/*.md') return ['.claude/commands/test.md'];
+        if (pattern === '**/*') return ['CLAUDE.md'];
+        if (pattern === '**/*') return ['.claude/commands/test.md'];
         return [];
       });
       vi.mocked(ensureDir).mockResolvedValue(undefined);
@@ -275,7 +274,7 @@ describe('loadコマンド', () => {
       vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
         const cwdStr = options?.cwd?.toString() || '';
         if (cwdStr.includes('/project')) {
-          if (pattern === 'CLAUDE.md') return ['CLAUDE.md'];
+          if (pattern === '**/*') return ['CLAUDE.md'];
         }
         return [];
       });
@@ -305,7 +304,7 @@ describe('loadコマンド', () => {
         return Promise.reject(error);
       });
       vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
-        if (pattern === '.claude/**/*.md') return ['.claude/commands/subdir/deep.md'];
+        if (pattern === '**/*') return ['.claude/commands/subdir/deep.md'];
         return [];
       });
       vi.mocked(copy).mockResolvedValue(undefined);
@@ -316,6 +315,61 @@ describe('loadコマンド', () => {
       expect(copy).toHaveBeenCalledWith(
         expect.stringContaining('/home/user/.config/claudy/sets/test-set'),
         '/project/.claude/commands/subdir/deep.md',
+        expect.objectContaining({
+          overwrite: true,
+          preserveTimestamps: true
+        })
+      );
+    });
+
+    it('参照ファイルを含むすべてのファイルを復元する', async () => {
+      vi.mocked(stat).mockImplementation((path: any) => {
+        const pathStr = path.toString();
+        // セットディレクトリは存在する
+        if (pathStr.includes('sets/test-set')) {
+          return Promise.resolve({ isDirectory: () => true } as any);
+        }
+        // 現在のディレクトリのファイルは存在しない
+        const error = new Error('ENOENT') as NodeJS.ErrnoException;
+        error.code = 'ENOENT';
+        return Promise.reject(error);
+      });
+      
+      // glob が '**/*' パターンですべてのファイルを返すようにモック
+      vi.mocked(glob).mockImplementation(async (pattern: string, options?: any) => {
+        const cwdStr = options?.cwd?.toString() || '';
+        if (pattern === '**/*' && cwdStr.includes('/project')) {
+          return [
+            'CLAUDE.md',
+            '.claude/commands/test.md',
+            'docs/api-reference.md',  // 参照ファイル
+            'src/utils/helper.ts'     // 参照ファイル
+          ];
+        }
+        return [];
+      });
+      
+      vi.mocked(copy).mockResolvedValue(undefined);
+      vi.mocked(ensureDir).mockResolvedValue(undefined);
+
+      await executeLoadCommand('test-set', { verbose: false });
+
+      // すべてのファイルがコピーされたことを確認
+      expect(copy).toHaveBeenCalledTimes(4);
+      
+      // 参照ファイルも含めてコピーされていることを確認
+      expect(copy).toHaveBeenCalledWith(
+        expect.stringContaining('docs/api-reference.md'),
+        '/project/docs/api-reference.md',
+        expect.objectContaining({
+          overwrite: true,
+          preserveTimestamps: true
+        })
+      );
+      
+      expect(copy).toHaveBeenCalledWith(
+        expect.stringContaining('src/utils/helper.ts'),
+        '/project/src/utils/helper.ts',
         expect.objectContaining({
           overwrite: true,
           preserveTimestamps: true

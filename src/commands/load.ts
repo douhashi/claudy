@@ -159,27 +159,21 @@ interface FileWithScope {
  * @throws {ClaudyError} ファイル検索中にエラーが発生した場合
  */
 async function getSetFiles(setDir: string): Promise<FileWithScope[]> {
-  const patterns = [
-    'CLAUDE.md',
-    '.claude/**/*.md'
-  ];
-
   const filesWithScope: FileWithScope[] = [];
   
   // プロジェクトレベルのファイルを検索
   const projectDir = path.join(setDir, 'project');
   try {
     await stat(projectDir);
-    for (const pattern of patterns) {
-      const matches = await glob(pattern, {
-        cwd: projectDir,
-        nodir: true,
-        dot: true
-      });
-      matches.forEach(file => {
-        filesWithScope.push({ file, scope: 'project', baseDir: projectDir });
-      });
-    }
+    // すべてのファイルを再帰的に取得
+    const matches = await glob('**/*', {
+      cwd: projectDir,
+      nodir: true,
+      dot: true
+    });
+    matches.forEach(file => {
+      filesWithScope.push({ file, scope: 'project', baseDir: projectDir });
+    });
   } catch {
     // project ディレクトリが存在しない場合は無視
   }
@@ -188,16 +182,15 @@ async function getSetFiles(setDir: string): Promise<FileWithScope[]> {
   const userDir = path.join(setDir, 'user');
   try {
     await stat(userDir);
-    for (const pattern of patterns) {
-      const matches = await glob(pattern, {
-        cwd: userDir,
-        nodir: true,
-        dot: true
-      });
-      matches.forEach(file => {
-        filesWithScope.push({ file, scope: 'user', baseDir: userDir });
-      });
-    }
+    // すべてのファイルを再帰的に取得
+    const matches = await glob('**/*', {
+      cwd: userDir,
+      nodir: true,
+      dot: true
+    });
+    matches.forEach(file => {
+      filesWithScope.push({ file, scope: 'user', baseDir: userDir });
+    });
   } catch {
     // user ディレクトリが存在しない場合は無視
   }
