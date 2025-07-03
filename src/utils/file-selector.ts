@@ -259,7 +259,7 @@ export async function selectFilesWithCheckbox(
   
   // プロジェクトレベルのメインファイル
   if (projectFiles.mainFiles.length > 0) {
-    choices.push(new inquirer.Separator('--- プロジェクトレベル ---'))
+    choices.push(new inquirer.Separator('--- Project level ---'))
     
     for (const file of projectFiles.mainFiles) {
       choices.push({
@@ -276,7 +276,7 @@ export async function selectFilesWithCheckbox(
       choices.push(new inquirer.Separator(' '));
     }
     
-    choices.push(new inquirer.Separator('--- 参照ファイル (プロジェクト) ---'));
+    choices.push(new inquirer.Separator('--- Referenced files (Project) ---'));
     
     for (const refFile of projectFiles.referencedFiles) {
       const referredFromText = refFile.referredFrom.map(from => 
@@ -284,7 +284,7 @@ export async function selectFilesWithCheckbox(
       ).join(', ');
       
       choices.push({
-        name: `${formatFilePath(refFile.path, process.cwd(), false)} (参照元: ${referredFromText})`,
+        name: `${formatFilePath(refFile.path, process.cwd(), false)} (from ${referredFromText})`,
         value: `project:${refFile.path}`,
         checked: shouldCheck(refFile.path, false, true),
       });
@@ -297,7 +297,7 @@ export async function selectFilesWithCheckbox(
       choices.push(new inquirer.Separator(' '));
     }
     
-    choices.push(new inquirer.Separator('--- ユーザーレベル ---'));
+    choices.push(new inquirer.Separator('--- User level ---'));
     
     for (const file of userFiles.mainFiles) {
       choices.push({
@@ -314,7 +314,7 @@ export async function selectFilesWithCheckbox(
       choices.push(new inquirer.Separator(' '));
     }
     
-    choices.push(new inquirer.Separator('--- 参照ファイル (ユーザー) ---'));
+    choices.push(new inquirer.Separator('--- Referenced files (User) ---'));
     
     for (const refFile of userFiles.referencedFiles) {
       const referredFromText = refFile.referredFrom.map(from => 
@@ -322,7 +322,7 @@ export async function selectFilesWithCheckbox(
       ).join(', ');
       
       choices.push({
-        name: `${formatFilePath(refFile.path, userBaseDir, true)} (参照元: ${referredFromText})`,
+        name: `${formatFilePath(refFile.path, userBaseDir, true)} (from ${referredFromText})`,
         value: `user:${refFile.path}`,
         checked: shouldCheck(refFile.path, true, true),
       });
@@ -341,13 +341,13 @@ export async function selectFilesWithCheckbox(
   const { selectedFiles } = await inquirer.prompt<{ selectedFiles: string[] }>({
     type: 'checkbox',
     name: 'selectedFiles',
-    message: 'ファイルを選択してください (スペースで選択/解除、Enterで確定):',
+    message: 'Select files to save (space to select/deselect, enter to confirm):',
     choices,
     pageSize: 15,
     validate: (input: unknown): boolean | string => {
       const selectedItems = input as string[];
       if (!selectedItems || selectedItems.length === 0) {
-        return '少なくとも1つのファイルを選択してください';
+        return 'Please select at least one file';
       }
       return true;
     },
