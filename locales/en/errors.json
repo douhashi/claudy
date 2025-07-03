@@ -1,0 +1,99 @@
+{
+  "validation": {
+    "invalidSetName": "Invalid set name. Only alphanumeric characters, hyphens, and underscores are allowed.",
+    "invalidProfileName": "Invalid profile name.",
+    "invalidPath": "The specified path is invalid.",
+    "invalidArgument": "Invalid argument.",
+    "reservedName": "Reserved words cannot be used."
+  },
+  "resource": {
+    "setNotFound": "The specified set was not found.",
+    "profileNotFound": "The specified profile was not found.",
+    "fileNotFound": "File not found.",
+    "dirNotFound": "Directory not found.",
+    "homeDirNotFound": "Home directory not found.",
+    "noFilesFound": "No files to save were found.",
+    "noConfigFiles": "Configuration files not found."
+  },
+  "permission": {
+    "denied": "Access denied.",
+    "readDenied": "No read permission for the file.",
+    "writeDenied": "No write permission for the file.",
+    "executeDenied": "No execute permission for the file."
+  },
+  "filesystem": {
+    "diskFull": "Insufficient disk space.",
+    "fileLocked": "File is locked by another process.",
+    "pathTooLong": "Path is too long.",
+    "invalidFileName": "Invalid file name.",
+    "symlinkLoop": "Symbolic link loop detected."
+  },
+  "operation": {
+    "saveError": "Failed to save the set.",
+    "loadError": "Failed to load the set.",
+    "listError": "Failed to retrieve set list.",
+    "deleteError": "Failed to delete the set.",
+    "deleteFailed": "An error occurred while deleting the set.",
+    "backupFailed": "Failed to create backup.",
+    "expandFailed": "Failed to expand files.",
+    "rollbackFailed": "Failed to rollback.",
+    "migrationError": "Failed to migrate configuration."
+  },
+  "file": {
+    "readError": "Failed to read file.",
+    "writeError": "Failed to write file.",
+    "copyError": "Failed to copy file.",
+    "deleteError": "Failed to delete file.",
+    "dirCreateError": "Failed to create directory.",
+    "dirDeleteError": "Failed to delete directory.",
+    "dirCopyError": "Failed to copy directory."
+  },
+  "data": {
+    "jsonParseError": "Failed to parse JSON.",
+    "jsonWriteError": "Failed to write JSON.",
+    "invalidFormat": "Invalid data format.",
+    "corrupted": "Data is corrupted."
+  },
+  "config": {
+    "loadError": "Failed to load configuration.",
+    "saveError": "Failed to save configuration.",
+    "invalid": "Invalid configuration.",
+    "profileExists": "A profile with the same name already exists.",
+    "defaultProfileDelete": "Default profile cannot be deleted."
+  },
+  "system": {
+    "unknownError": "An unknown error occurred.",
+    "internalError": "An internal error occurred.",
+    "networkError": "A network error occurred."
+  },
+  "ui": {
+    "fileSelectionError": "An error occurred during file selection."
+  },
+  "solutions": {
+    "permissionDenied": [
+      "Check the permissions of the file or directory",
+      "Try running with sudo (for system directories)",
+      "Check the file owner"
+    ],
+    "diskFull": [
+      "Check available disk space",
+      "Delete unnecessary files",
+      "Change the save location to another disk"
+    ],
+    "fileLocked": [
+      "Close other programs using the file",
+      "Wait a moment and try again",
+      "Restart the system"
+    ],
+    "setNotFound": [
+      "Use 'claudy list' command to check available sets",
+      "Check the spelling of the set name"
+    ],
+    "noFilesFound": [
+      "Ensure that CLAUDE.md file exists",
+      "Ensure that files exist in .claude/commands/ directory"
+    ]
+  },
+  "details": "Details",
+  "solutionHeader": "Solutions"
+}

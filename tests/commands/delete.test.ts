@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
+import { setupI18n, i18nAssert } from '../helpers/i18n-test-helper';
 import { executeDeleteCommand } from '../../src/commands/delete';
 import { ClaudyError } from '../../src/types';
 import { ErrorCodes } from '../../src/types/errors';
@@ -27,6 +28,10 @@ const mockFs = vi.mocked(fsExtra);
 const mockInquirer = vi.mocked(inquirer);
 
 describe('deleteコマンド', () => {
+  beforeAll(async () => {
+    await setupI18n();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     
@@ -36,7 +41,7 @@ describe('deleteコマンド', () => {
     mockPathUtils.getSetDir.mockReturnValue('/home/user/.config/claudy/sets/test-set');
     mockPathUtils.validateSetName.mockImplementation((name) => {
       if (!name || name.trim() === '') {
-        throw new ClaudyError('セット名を指定してください', ErrorCodes.INVALID_SET_NAME);
+        throw new ClaudyError('Invalid set name', ErrorCodes.INVALID_SET_NAME);
       }
     });
   });
@@ -44,15 +49,15 @@ describe('deleteコマンド', () => {
   describe('executeDeleteCommand', () => {
     it('セット名が指定されていない場合エラーをスローする', async () => {
       mockPathUtils.validateSetName.mockImplementation(() => {
-        throw new ClaudyError('セット名を指定してください', ErrorCodes.INVALID_SET_NAME);
+        throw new ClaudyError('Invalid set name', ErrorCodes.INVALID_SET_NAME);
       });
 
-      await expect(executeDeleteCommand('', { verbose: false })).rejects.toThrow(
-        new ClaudyError(
-          'セット名を指定してください',
-          ErrorCodes.INVALID_SET_NAME
-        )
-      );
+      try {
+        await executeDeleteCommand('', { verbose: false });
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        i18nAssert.errorMatches(error, ErrorCodes.INVALID_SET_NAME);
+      }
     });
 
     it('セットが存在しない場合エラーをスローする', async () => {
@@ -61,13 +66,12 @@ describe('deleteコマンド', () => {
       error.code = 'ENOENT';
       mockFs.stat.mockRejectedValue(error);
 
-      await expect(executeDeleteCommand('nonexistent', { verbose: false })).rejects.toThrow(
-        new ClaudyError(
-          'セット "nonexistent" が見つかりません',
-          ErrorCodes.SET_NOT_FOUND,
-          { setName: 'nonexistent', path: '/home/user/.config/claudy/sets/nonexistent' }
-        )
-      );
+      try {
+        await executeDeleteCommand('nonexistent', { verbose: false });
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        i18nAssert.errorMatches(error, ErrorCodes.SET_NOT_FOUND, { setName: 'nonexistent' });
+      }
     });
 
     it('確認プロンプトでキャンセルした場合、削除を中止する', async () => {
@@ -79,7 +83,8 @@ describe('deleteコマンド', () => {
 
       await executeDeleteCommand('test-set', { verbose: false });
 
-      expect(mockLogger.info).toHaveBeenCalledWith('削除をキャンセルしました');
+      // Check that cancellation message was shown
+      i18nAssert.calledWithPhrase(mockLogger.info, 'cancel');
       expect(mockFs.remove).not.toHaveBeenCalled();
     });
 
@@ -97,14 +102,16 @@ describe('deleteコマンド', () => {
         {
           type: 'confirm',
           name: 'confirm',
-          message: 'セット "test-set" を削除してもよろしいですか？',
+          message: expect.stringContaining('test-set'),
           default: false,
         },
       ]);
 
       expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/sets/test-set');
-      expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" を削除しました');
-      expect(mockLogger.info).toHaveBeenCalledWith('\n現在のセット一覧を確認するには:');
+      // Check that success message contains the set name
+      i18nAssert.calledWithPhrase(mockLogger.success, 'test-set');
+      // Check that hint about list command was shown
+      i18nAssert.calledWithPhrase(mockLogger.info, 'list');
       expect(mockLogger.info).toHaveBeenCalledWith('  $ claudy list');
     });
 
@@ -119,7 +126,8 @@ describe('deleteコマンド', () => {
 
       expect(inquirer.prompt).not.toHaveBeenCalled();
       expect(mockFs.remove).toHaveBeenCalledWith('/home/user/.config/claudy/sets/test-set');
-      expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" を削除しました');
+      // Check that success message contains the set name
+      i18nAssert.calledWithPhrase(mockLogger.success, 'test-set');
     });
 
     it('削除中にエラーが発生した場合、適切にエラーハンドリングする', async () => {
@@ -150,8 +158,9 @@ describe('deleteコマンド', () => {
       await executeDeleteCommand('test-set', { verbose: true, force: true });
 
       expect(mockLogger.setVerbose).toHaveBeenCalledWith(true);
-      expect(mockLogger.debug).toHaveBeenCalledWith('削除対象セット: test-set');
-      expect(mockLogger.debug).toHaveBeenCalledWith('セットパス: /home/user/.config/claudy/sets/test-set');
+      // Check that debug messages contain expected information
+      i18nAssert.calledWithPhrase(mockLogger.debug, 'test-set');
+      i18nAssert.calledWithPhrase(mockLogger.debug, '/home/user/.config/claudy/sets/test-set');
     });
 
     it('セットパスがファイルの場合、存在しないものとして扱う', async () => {
@@ -160,13 +169,12 @@ describe('deleteコマンド', () => {
         isDirectory: () => false,
       } as any);
 
-      await expect(executeDeleteCommand('file-not-dir', { verbose: false })).rejects.toThrow(
-        new ClaudyError(
-          'セット "file-not-dir" が見つかりません',
-          ErrorCodes.SET_NOT_FOUND,
-          { setName: 'file-not-dir', path: '/home/user/.config/claudy/sets/file-not-dir' }
-        )
-      );
+      try {
+        await executeDeleteCommand('file-not-dir', { verbose: false });
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        i18nAssert.errorMatches(error, ErrorCodes.SET_NOT_FOUND, { setName: 'file-not-dir' });
+      }
     });
 
     it('statでアクセスエラーが発生した場合、適切にラップして再スローする', async () => {

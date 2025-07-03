@@ -10,6 +10,7 @@ import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors.js';
 import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler.js';
 import { getSetDir, validateSetName } from '../utils/path.js';
 import { performFileSelection, FileSelectionResult } from '../utils/file-selector.js';
+import { t } from '../utils/i18n.js';
 
 interface SaveOptions {
   verbose?: boolean;
@@ -149,7 +150,7 @@ export async function executeSaveCommand(
     
     // セット名のバリデーション
     validateSetName(name);
-    logger.debug(`セット名: ${name}`);
+    logger.debug(t('commands:save.messages.setNameDebug', { name }));
     
     let fileGroups: FileSelectionResult[];
     let totalFiles = 0;
@@ -157,9 +158,9 @@ export async function executeSaveCommand(
     if (options.all) {
       // --allフラグが指定された場合（従来のモード）
       const currentDir = process.cwd();
-      logger.debug(`現在のディレクトリ: ${currentDir}`);
+      logger.debug(t('commands:save.messages.currentDirDebug', { dir: currentDir }));
       
-      logger.info('Claude設定ファイルを検索中...');
+      logger.info(t('commands:save.messages.searchingFiles'));
       const files = await findTargetFiles(currentDir);
       
       if (files.length === 0) {
@@ -170,8 +171,8 @@ export async function executeSaveCommand(
         );
       }
       
-      logger.debug(`見つかったファイル: ${files.join(', ')}`);
-      logger.info(`${files.length}個のファイルが見つかりました`);
+      logger.debug(t('commands:save.messages.foundFilesDebug', { files: files.join(', ') }));
+      logger.info(t('commands:save.messages.filesFound', { count: files.length }));
       
       fileGroups = [{ files, baseDir: currentDir }];
       totalFiles = files.length;
@@ -182,7 +183,7 @@ export async function executeSaveCommand(
       
       if (totalFiles === 0) {
         throw new ClaudyError(
-          'ファイルが選択されませんでした',
+          t('commands:save.messages.noFilesSelected'),
           ErrorCodes.NO_FILES_FOUND
         );
       }
@@ -190,7 +191,7 @@ export async function executeSaveCommand(
     
     // 保存先のパス（新しい構造：sets/<set-name>/）
     const setPath = getSetDir(name);
-    logger.debug(`保存先: ${setPath}`);
+    logger.debug(t('commands:save.messages.savePathDebug', { path: setPath }));
     
     // 既存セットの確認
     if (await existsSet(setPath) && !options.force) {
@@ -198,25 +199,25 @@ export async function executeSaveCommand(
         {
           type: 'confirm',
           name: 'overwrite',
-          message: `セット "${name}" は既に存在します。上書きしますか？`,
+          message: t('commands:save.messages.existsConfirm', { name }),
           default: false,
         },
       ]);
       
       if (!overwrite) {
-        logger.info('保存をキャンセルしました');
+        logger.info(t('commands:save.messages.cancelled'));
         return;
       }
     }
     
     // ファイルをコピー
-    logger.info('ファイルを保存中...');
+    logger.info(t('commands:save.messages.savingFiles'));
     await copyFilesFromMultipleSources(fileGroups, setPath);
     
     // 成功メッセージ
-    logger.success(`✓ ${totalFiles}個のファイルを保存しました`);
-    logger.info(`セット名: "${name}"`);
-    logger.info(`保存先: ${setPath}`);
+    logger.success(`✓ ${t('commands:save.messages.savedFiles', { count: totalFiles })}`);
+    logger.info(`Set name: "${name}"`);
+    logger.info(`Save path: ${setPath}`);
     
     // ファイル数の内訳を表示
     let projectFileCount = 0;
@@ -230,15 +231,15 @@ export async function executeSaveCommand(
     });
     
     if (projectFileCount > 0 && userFileCount > 0) {
-      logger.info(`  - プロジェクトレベル: ${projectFileCount}個`);
-      logger.info(`  - ユーザーレベル: ${userFileCount}個`);
+      logger.info(`  - Project level: ${projectFileCount} ${t('commands:save.messages.files', { count: projectFileCount })}`);
+      logger.info(`  - User level: ${userFileCount} ${t('commands:save.messages.files', { count: userFileCount })}`);
     }
     
-    logger.info('\n次のコマンドでこのセットを利用できます:');
+    logger.info('\n' + t('commands:save.messages.nextCommand'));
     logger.info(`  $ claudy load ${name}`);
     
     if (options.verbose) {
-      logger.info('\n保存されたファイル:');
+      logger.info('\n' + t('commands:save.messages.savedFilesList'));
       fileGroups.forEach(group => {
         const prefix = group.baseDir === process.cwd() ? './' : '~/';
         group.files.forEach(file => {
@@ -261,45 +262,18 @@ export async function executeSaveCommand(
 export function registerSaveCommand(program: Command): void {
   program
     .command('save <name>')
-    .description('Claude設定ファイルを名前付きセットとして保存（デフォルトはインタラクティブモード）')
-    .option('-f, --force', '既存のセットを確認なしで上書き')
-    .option('-a, --all', '全ファイルを自動的に保存（インタラクティブ選択をスキップ）')
-    .option('-i, --interactive', '(廃止予定) デフォルトでインタラクティブモードが有効です')
-    .addHelpText('after', `
-使用例:
-  $ claudy save myproject          # インタラクティブにファイルを選択して保存（デフォルト）
-  $ claudy save node/cli           # 階層的なセット名で保存
-  $ claudy save frontend -a        # 全ファイルを自動的に保存
-  $ claudy save backend -f         # 既存の"backend"セットを上書き
-  $ claudy save project-v2 -a -f   # 全ファイルを自動保存し、既存セットを上書き
-
-階層的なセット名:
-  スラッシュ (/) を使用して階層的にセットを整理できます:
-  $ claudy save node/express       # Node.js Express用の設定
-  $ claudy save python/django      # Python Django用の設定
-  $ claudy save test/unit          # ユニットテスト用の設定
-
-保存対象ファイル:
-  プロジェクトレベル:
-    - CLAUDE.md                    # プロジェクトの指示書
-    - CLAUDE.local.md              # ローカル設定（存在する場合）
-    - .claude/**/*.md              # カスタムコマンド
-  
-  ユーザーレベル（デフォルトで選択可能）:
-    - ~/.claude/CLAUDE.md          # グローバル設定
-    - ~/.claude/commands/**/*.md   # グローバルコマンド
-
-保存先構造:
-  ~/.config/claudy/sets/<set-name>/
-    ├── project/                   # プロジェクトレベルのファイル
-    └── user/                      # ユーザーレベルのファイル`)
+    .description(t('commands:save.description'))
+    .option('-f, --force', t('commands:save.options.force'))
+    .option('-a, --all', t('commands:save.options.all'))
+    .option('-i, --interactive', t('commands:save.options.interactive'))
+    .addHelpText('after', t('commands:save.helpText'))
     .action(async (name: string, options: SaveOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;
       
       // -iオプションが指定された場合は警告を表示
       if (options.interactive) {
-        logger.warn('注意: -i/--interactive オプションは廃止予定です。デフォルトでインタラクティブモードが有効になっています。');
+        logger.warn(t('commands:save.messages.deprecatedInteractive'));
       }
       
       try {

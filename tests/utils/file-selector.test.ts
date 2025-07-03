@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
+import { setupI18n } from '../helpers/i18n-test-helper';
 import path from 'path';
 import os from 'os';
 import fsExtra from 'fs-extra';
@@ -34,6 +35,10 @@ const mockInquirer = vi.mocked(inquirer);
 describe('file-selector', () => {
   const testCwd = '/test/project';
   const homeDir = '/home/testuser';
+  
+  beforeAll(async () => {
+    await setupI18n();
+  });
   
   beforeEach(() => {
     vi.clearAllMocks();
@@ -242,7 +247,7 @@ describe('file-selector', () => {
       };
       
       await expect(selectFilesInteractively(projectFiles, userFiles, homeDir))
-        .rejects.toThrow('Claude関連ファイルが見つかりませんでした');
+        .rejects.toThrow('No Claude-related files found');
     });
     
     it('should validate at least one file is selected in custom mode', async () => {
@@ -268,7 +273,8 @@ describe('file-selector', () => {
         
         if (question.validate) {
           const validateResult = question.validate([]);
-          expect(validateResult).toBe('少なくとも1つのファイルを選択してください');
+          expect(typeof validateResult).toBe('string');
+          expect(validateResult).toBeTruthy(); // エラーメッセージが返される
         }
         
         return { selectedFiles: ['project:CLAUDE.md'] };
@@ -311,7 +317,7 @@ describe('file-selector', () => {
       mockFs.pathExists.mockResolvedValue(false);
       
       await expect(performFileSelection())
-        .rejects.toThrow('Claude関連ファイルが見つかりませんでした');
+        .rejects.toThrow('No Claude-related files found');
     });
   });
 });

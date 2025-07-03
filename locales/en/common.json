@@ -1,0 +1,58 @@
+{
+  "app": {
+    "name": "claudy",
+    "description": "Claude AI configuration file management tool\n\nManage and save Claude AI configuration files (CLAUDE.md, .claude/commands/**/*.md)\nas named sets.",
+    "usage": "Usage",
+    "unexpectedError": "An unexpected error occurred",
+    "unexpectedErrorDetail": "An unexpected error occurred: {{message}}"
+  },
+  "logger": {
+    "debug": "DEBUG",
+    "verbose": "Show verbose logs"
+  },
+  "profile": {
+    "specify": "Specify profile to use"
+  },
+  "examples": {
+    "save": "Save current configuration as \"myproject\"",
+    "list": "Show list of saved sets",
+    "load": "Load \"myproject\" configuration to current directory",
+    "delete": "Delete \"myproject\" set"
+  },
+  "fileSelection": {
+    "selectOption": "Which file?",
+    "selectForCommand": "Select for {{command}}",
+    "selectedFiles": "Selected files",
+    "cancel": "Cancel",
+    "file": "file",
+    "filesSelected": "✓ {{count}} file(s) selected",
+    "projectFilesSelected": "✓ {{count}} project level file(s) selected",
+    "userFilesSelected": "✓ {{count}} user level file(s) selected",
+    "searchingFiles": "Searching for Claude configuration files...",
+    "patternError": "Error searching pattern \"{{pattern}}\": {{error}}",
+    "projectLevelDebug": "Project level: {{mainCount}} main file(s), {{refCount}} referenced file(s) found",
+    "userLevelDebug": "User level: {{mainCount}} main file(s), {{refCount}} referenced file(s) found"
+  },
+  "validation": {
+    "invalidName": "Name can only contain alphanumeric characters, hyphens, and underscores"
+  },
+  "confirmation": {
+    "yes": "Yes",
+    "no": "No"
+  },
+  "config": {
+    "profileAdded": "Profile '{{name}}' added",
+    "profileRemoved": "Profile '{{name}}' removed",
+    "defaultProfileSet": "Default profile set to '{{name}}'",
+    "configSaved": "Configuration saved",
+    "profileNotFound": "Profile '{{profile}}' not found",
+    "profileExists": "Profile '{{name}}' already exists",
+    "cannotDeleteDefault": "Cannot delete default profile",
+    "migrationSuccess": "Configuration migration completed",
+    "migrationHint": "Please manually delete the old directory ({{dir}})",
+    "legacyDetected": "Legacy configuration directory detected. Starting migration to new format...",
+    "migrationError": "Error occurred during configuration migration:",
+    "configLoadError": "Failed to load configuration",
+    "configSaveError": "Failed to save configuration"
+  }
+}
