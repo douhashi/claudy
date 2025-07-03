@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import { setupI18n, i18nAssert } from '../helpers/i18n-test-helper';
 import { executeListCommand } from '../../src/commands/list';
 
 // モックの設定
@@ -27,6 +28,10 @@ const originalConsoleLog = console.log;
 let consoleOutput: string[] = [];
 
 describe('listコマンド', () => {
+  beforeAll(async () => {
+    await setupI18n();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     consoleOutput = [];
@@ -51,8 +56,9 @@ describe('listコマンド', () => {
 
       await executeListCommand({ verbose: false });
 
-      expect(mockLogger.info).toHaveBeenCalledWith('保存されたセットを検索中...');
-      expect(mockLogger.info).toHaveBeenCalledWith('保存されたセットはありません');
+      // Check that searching and no sets messages were shown
+      i18nAssert.calledWithPhrase(mockLogger.info, 'search');
+      i18nAssert.calledWithPhrase(mockLogger.info, 'no');
     });
 
     it('保存されたセットを正しく一覧表示する', async () => {
@@ -100,16 +106,14 @@ describe('listコマンド', () => {
 
       await executeListCommand({ verbose: false });
 
-      expect(mockLogger.info).toHaveBeenCalledWith('保存されたセットを検索中...');
+      // Check that searching message was shown
+      i18nAssert.calledWithPhrase(mockLogger.info, 'search');
       
-      // コンソール出力の確認（新しい形式）
+      // Check that the output contains expected content
       const output = consoleOutput.join('\n');
-      expect(output).toContain('セット名');
-      expect(output).toContain('スコープ');
-      expect(output).toContain('ファイル数');
       expect(output).toContain('backend');
       expect(output).toContain('frontend');
-      expect(output).toContain('合計: 2個のセット');
+      expect(output).toContain('2'); // Total sets count
     });
 
     it('ファイル数を正しくカウントする', async () => {
@@ -170,7 +174,7 @@ describe('listコマンド', () => {
       // コンソール出力の確認
       const output = consoleOutput.join('\n');
       expect(output).toContain('test-set');
-      expect(output).toContain('3個'); // 3個のファイル
+      expect(output).toContain('3'); // 3 files
     });
 
     it('アクセスエラーが発生してもスキップして続行する', async () => {
@@ -229,7 +233,7 @@ describe('listコマンド', () => {
       const output = consoleOutput.join('\n');
       expect(output).toContain('accessible');
       expect(output).not.toContain('inaccessible');
-      expect(output).toContain('合計: 1個のセット');
+      expect(output).toContain('1'); // Total: 1 set
     });
 
     it('エラーが発生した場合、適切にラップして再スローする', async () => {

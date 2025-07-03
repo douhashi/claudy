@@ -1,30 +1,30 @@
 # claudy
 
-Claude AI設定ファイル管理ツール
+Claude AI Configuration File Management Tool
 
 [![npm version](https://badge.fury.io/js/claudy.svg)](https://badge.fury.io/js/claudy)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 📋 概要
+## 📋 Overview
 
-claudyは、Claude AIの設定ファイル（CLAUDE.md、.claude/commands/**/*.md）を管理するためのCLIツールです。複数のプロジェクトやコンテキストごとに異なる設定セットを簡単に切り替えることができます。
+claudy is a CLI tool for managing Claude AI configuration files (CLAUDE.md, .claude/commands/**/*.md). It allows you to easily switch between different configuration sets for multiple projects and contexts.
 
-### 主な機能
+### Key Features
 
-- 🗂️ **設定ファイルのセット管理** - プロジェクトごとに異なる設定を保存・復元
-- 🔄 **簡単な切り替え** - 一つのコマンドで設定を切り替え
-- 🛡️ **安全な操作** - 既存ファイルのバックアップ、削除前の確認
-- 🌐 **クロスプラットフォーム対応** - macOS、Linuxで動作
-- 📝 **型安全** - TypeScriptで実装された堅牢なコード
+- 🗂️ **Configuration Set Management** - Save and restore different configurations for each project
+- 🔄 **Easy Switching** - Switch configurations with a single command
+- 🛡️ **Safe Operations** - Backup existing files, confirmation before deletion
+- 🌐 **Cross-platform Support** - Works on macOS and Linux
+- 📝 **Type-safe** - Robust code implemented in TypeScript
 
-## 🚀 インストール
+## 🚀 Installation
 
-### 動作環境
+### Requirements
 
 - **OS**: macOS, Linux
 - **Node.js**: 18.x, 20.x, 22.x
 
-### npm（推奨）
+### npm (Recommended)
 
 ```bash
 npm install -g claudy
@@ -42,155 +42,155 @@ yarn global add claudy
 pnpm add -g claudy
 ```
 
-## 📖 使い方
+## 📖 Usage
 
-### 基本的なワークフロー
+### Basic Workflow
 
-1. **現在の設定を保存**
+1. **Save Current Configuration**
    ```bash
-   # プロジェクトのルートディレクトリで
+   # In your project root directory
    claudy save myproject
    ```
 
-2. **保存済みの設定を一覧表示**
+2. **List Saved Configurations**
    ```bash
    claudy list
    ```
 
-3. **別の設定を展開**
+3. **Load a Different Configuration**
    ```bash
-   # 別のプロジェクトに移動して
+   # Navigate to another project
    cd ~/another-project
    claudy load myproject
    ```
 
-### コマンド一覧
+### Commands
 
-詳細なコマンドリファレンスは[CLIコマンドリファレンス](docs/cli-reference.md)を参照してください。
+For detailed command reference, see [CLI Command Reference](docs/cli-reference.md).
 
 #### `claudy save <name>`
-Claude設定ファイルを名前付きセットとして保存します。デフォルトでインタラクティブにファイルを選択できます。
+Save Claude configuration files as a named set. Interactive file selection is available by default.
 
 ```bash
-claudy save myproject       # インタラクティブにファイルを選択して保存（デフォルト）
-claudy save frontend -a     # 全ファイルを自動的に保存
-claudy save backend -f      # 既存のセットを強制上書き
-claudy save project-v2 -a -f # 全ファイルを自動保存し、既存セットを上書き
+claudy save myproject       # Interactively select files to save (default)
+claudy save frontend -a     # Automatically save all files
+claudy save backend -f      # Force overwrite existing set
+claudy save project-v2 -a -f # Auto-save all files and overwrite existing set
 ```
 
-**オプション:**
-- `-a, --all` - 全ファイルを自動的に保存（インタラクティブ選択をスキップ）
-- `-f, --force` - 既存のセットを確認なしで上書き
+**Options:**
+- `-a, --all` - Automatically save all files (skip interactive selection)
+- `-f, --force` - Overwrite existing set without confirmation
 
-**対象ファイル:**
-- プロジェクトレベル:
-  - `CLAUDE.md` - メインの設定ファイル
-  - `.claude/commands/**/*.md` - カスタムコマンド定義
-- ユーザーレベル（デフォルトで選択可能）:
-  - `~/.claude/CLAUDE.md` - グローバル設定
-  - `~/.claude/commands/**/*.md` - グローバルコマンド
+**Target Files:**
+- Project level:
+  - `CLAUDE.md` - Main configuration file
+  - `.claude/commands/**/*.md` - Custom command definitions
+- User level (selectable by default):
+  - `~/.claude/CLAUDE.md` - Global settings
+  - `~/.claude/commands/**/*.md` - Global commands
 
 #### `claudy load <name>`
-保存済みの設定セットを現在のディレクトリに展開します。
+Restore a saved configuration set to the current directory.
 
 ```bash
-claudy load frontend        # "frontend"セットを展開
-claudy load backend -f      # 既存ファイルを強制上書き
+claudy load frontend        # Load "frontend" set
+claudy load backend -f      # Force overwrite existing files
 ```
 
-**既存ファイルの処理オプション:**
-- バックアップを作成（.bakファイル）
-- 上書き
-- キャンセル
+**Existing File Handling Options:**
+- Create backup (.bak files)
+- Overwrite
+- Cancel
 
 #### `claudy list`
-保存済みの設定セット一覧を表示します。
+Display list of saved configuration sets.
 
 ```bash
-claudy list                 # 全てのセットを表示
-claudy list -v              # 詳細情報付きで表示
+claudy list                 # Show all sets
+claudy list -v              # Show with detailed information
 ```
 
-**表示内容:**
-- セット名
-- 作成日時
-- ファイル数
+**Display Contents:**
+- Set name
+- Creation date
+- Number of files
 
 #### `claudy delete <name>`
-指定した設定セットを削除します。
+Delete specified configuration set.
 
 ```bash
-claudy delete old-project   # 削除（確認あり）
-claudy delete temp -f       # 即座に削除
+claudy delete old-project   # Delete with confirmation
+claudy delete temp -f       # Delete immediately
 ```
 
-### グローバルオプション
+### Global Options
 
-- `-v, --verbose` - 詳細なログを出力
-- `-h, --help` - ヘルプを表示
-- `-V, --version` - バージョンを表示
+- `-v, --verbose` - Show verbose logs
+- `-h, --help` - Display help
+- `-V, --version` - Display version
 
-## 💡 使用例
+## 💡 Examples
 
-### プロジェクトテンプレートの管理
+### Managing Project Templates
 
 ```bash
-# テンプレートプロジェクトで理想的な設定を作成
+# Create ideal configuration in template project
 cd ~/templates/react-app
 vim CLAUDE.md
-# ... Claude AI用の詳細な指示を記載 ...
+# ... Write detailed instructions for Claude AI ...
 
-# テンプレートとして保存（インタラクティブに必要なファイルのみ選択）
+# Save as template (interactively select only necessary files)
 claudy save react-template
 
-# 新しいプロジェクトで使用
+# Use in new project
 cd ~/projects/new-react-app
 claudy load react-template
 ```
 
-### チーム内での設定共有
+### Sharing Configurations Within Team
 
 ```bash
-# チームの標準設定を保存（全ファイルを含む）
+# Save team standard configuration (including all files)
 claudy save team-standard -a
 
-# 他のメンバーも同じ設定を使用
+# Other members can use the same configuration
 claudy load team-standard
 ```
 
-### コンテキストの切り替え
+### Context Switching
 
 ```bash
-# フロントエンド開発用の設定
+# Configuration for frontend development
 claudy save frontend-context
 
-# バックエンド開発用の設定
+# Configuration for backend development
 claudy save backend-context
 
-# 必要に応じて切り替え
-claudy load frontend-context  # フロントエンド作業時
-claudy load backend-context   # バックエンド作業時
+# Switch as needed
+claudy load frontend-context  # When working on frontend
+claudy load backend-context   # When working on backend
 ```
 
-## 🛡️ エラーハンドリング
+## 🛡️ Error Handling
 
-claudyは、様々なエラーケースに対して適切なメッセージと解決策を提示します：
+claudy provides appropriate messages and solutions for various error cases:
 
-- **ファイルアクセス権限エラー** - 管理者権限での実行を提案
-- **ディスク容量不足** - 不要なファイルの削除を提案
-- **ファイルロックエラー** - リトライ機能付き
-- **無効なセット名** - 使用可能な文字の案内
+- **File Access Permission Errors** - Suggests running with administrator privileges
+- **Insufficient Disk Space** - Suggests deleting unnecessary files
+- **File Lock Errors** - Includes retry functionality
+- **Invalid Set Names** - Guides on allowed characters
 
-## 🔧 設定
+## 🔧 Configuration
 
-### 保存場所
+### Storage Location
 
-設定セットは以下の場所に保存されます：
+Configuration sets are saved in the following locations:
 
 - **Windows**: `%USERPROFILE%\.claudy\`
 - **macOS/Linux**: `~/.claudy/`
 
-### ディレクトリ構造
+### Directory Structure
 
 ```
 ~/.claudy/
@@ -212,78 +212,78 @@ claudyは、様々なエラーケースに対して適切なメッセージと�
             └── deploy.md
 ```
 
-## 🚧 トラブルシューティング
+## 🚧 Troubleshooting
 
-### "セットが見つかりません"エラー
+### "Set not found" Error
 
 ```bash
-# 保存済みセットを確認
+# Check saved sets
 claudy list
 
-# セット名のタイプミスをチェック
-claudy load myproject  # "myProject"ではない
+# Check for typos in set name
+claudy load myproject  # Not "myProject"
 ```
 
-### 権限エラー
+### Permission Errors
 
 ```bash
-# Windowsの場合（管理者として実行）
-# macOS/Linuxの場合
+# For Windows (run as administrator)
+# For macOS/Linux
 sudo claudy save myproject
 ```
 
-### ファイルロックエラー
+### File Lock Errors
 
-エディタやIDEでファイルを開いている場合は閉じてから再実行してください。
+If files are open in editor or IDE, close them before retrying.
 
-## 🤝 コントリビューション
+## 🤝 Contributing
 
-### 開発環境のセットアップ
+### Development Environment Setup
 
 ```bash
-# リポジトリをクローン
+# Clone repository
 git clone https://github.com/douhashi/claudy.git
 cd claudy
 
-# 依存関係をインストール
+# Install dependencies
 npm install
 
-# 開発モードで実行
+# Run in development mode
 npm run dev
 ```
 
-### ビルドとテスト
+### Build and Test
 
 ```bash
-# TypeScriptのコンパイル
+# TypeScript compilation
 npm run build
 
-# テストの実行
+# Run tests
 npm test
 
-# Lintチェック
+# Lint check
 npm run lint
 
-# 型チェック
+# Type check
 npm run type-check
 ```
 
-### Pull Requestのガイドライン
+### Pull Request Guidelines
 
-1. 新機能の場合は、まずIssueを作成して議論
-2. テストを追加（カバレッジ80%以上を維持）
-3. コミットメッセージは[Conventional Commits](https://www.conventionalcommits.org/)に従う
-4. TypeScriptの型安全性を維持
+1. For new features, create an Issue first for discussion
+2. Add tests (maintain coverage above 80%)
+3. Follow [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
+4. Maintain TypeScript type safety
 
-## 📝 ライセンス
+## 📝 License
 
-MIT License - 詳細は[LICENSE](LICENSE)ファイルを参照してください。
+MIT License - See [LICENSE](LICENSE) file for details.
 
-## 🙏 謝辞
+## 🙏 Acknowledgments
 
-このプロジェクトは、Claude AIを使用する開発者コミュニティのフィードバックとサポートによって成り立っています。
+This project is made possible by the feedback and support from the developer community using Claude AI.
 
-## 📧 サポート
+## 📧 Support
 
 - **Issues**: [GitHub Issues](https://github.com/douhashi/claudy/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/douhashi/claudy/discussions)

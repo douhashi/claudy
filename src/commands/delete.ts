@@ -7,6 +7,7 @@ import { ClaudyError } from '../types/index.js';
 import { getSetDir, validateSetName } from '../utils/path.js';
 import { ErrorCodes, wrapError } from '../types/errors.js';
 import { handleFileOperation, handleError } from '../utils/errorHandler.js';
+import { t } from '../utils/i18n.js';
 
 interface DeleteOptions {
   verbose?: boolean;
@@ -62,16 +63,16 @@ export async function executeDeleteCommand(
     // セット名のバリデーション
     validateSetName(name);
     
-    logger.debug(`削除対象セット: ${name}`);
+    logger.debug(`Set to delete: ${name}`);
     
     // 新しい構造のセットパスを使用
     const setPath = getSetDir(name);
-    logger.debug(`セットパス: ${setPath}`);
+    logger.debug(`Set path: ${setPath}`);
     
     // セットの存在確認
     if (!await existsSet(setPath)) {
       throw new ClaudyError(
-        `セット "${name}" が見つかりません`,
+        t('commands:delete.messages.setNotFound', { name }),
         ErrorCodes.SET_NOT_FOUND,
         { setName: name, path: setPath }
       );
@@ -83,31 +84,31 @@ export async function executeDeleteCommand(
         {
           type: 'confirm',
           name: 'confirm',
-          message: `セット "${name}" を削除してもよろしいですか？`,
+          message: t('commands:delete.messages.confirmDelete', { name }),
           default: false,
         },
       ]);
       
       if (!confirm) {
-        logger.info('削除をキャンセルしました');
+        logger.info(t('commands:delete.messages.cancelled'));
         return;
       }
     }
     
     // セットを削除
-    logger.info('セットを削除中...');
+    logger.info(t('commands:delete.messages.deleting', { name }));
     await deleteSet(setPath);
     
     // 成功メッセージ
-    logger.success(`✓ セット "${name}" を削除しました`);
-    logger.info('\n現在のセット一覧を確認するには:');
+    logger.success(`✓ ${t('commands:delete.messages.success', { name })}`);
+    logger.info('\n' + t('commands:delete.messages.toSeeCurrentSets'));
     logger.info('  $ claudy list');
     
   } catch (error) {
     if (error instanceof ClaudyError) {
       throw error;
     }
-    throw wrapError(error, ErrorCodes.DELETE_ERROR, 'セットの削除中にエラーが発生しました', { setName: name });
+    throw wrapError(error, ErrorCodes.DELETE_ERROR, 'An error occurred while deleting the set', { setName: name });
   }
 }
 
@@ -118,21 +119,9 @@ export async function executeDeleteCommand(
 export function registerDeleteCommand(program: Command): void {
   program
     .command('delete <name>')
-    .description('保存済みセットを削除')
-    .option('-f, --force', '確認なしで削除')
-    .addHelpText('after', `
-使用例:
-  $ claudy delete old-project      # "old-project"セットを削除（確認あり）
-  $ claudy delete node/cli         # 階層的なセット名も削除可能
-  $ claudy delete temp -f          # "temp"セットを即座に削除
-
-階層的なセット名:
-  スラッシュ (/) を使用した階層的なセットも削除できます:
-  $ claudy delete node/express     # Node.js Express用の設定を削除
-  $ claudy delete python/django    # Python Django用の設定を削除
-
-注意:
-  削除したセットは復元できません`)
+    .description(t('commands:delete.description'))
+    .option('-f, --force', t('commands:delete.options.force'))
+    .addHelpText('after', t('commands:delete.helpText'))
     .action(async (name: string, options: DeleteOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;

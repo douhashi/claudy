@@ -1,0 +1,107 @@
+{
+  "common": {
+    "examples": "Examples",
+    "moreInfo": "More Information"
+  },
+  "save": {
+    "description": "Save the current CLAUDE.md and command settings",
+    "options": {
+      "force": "Skip overwrite confirmation",
+      "interactive": "Select files interactively",
+      "all": "Save all files"
+    },
+    "helpText": "\nExamples:\n  $ claudy save myproject          # Interactively select files to save (default)\n  $ claudy save node/cli           # Save with hierarchical set name\n  $ claudy save frontend -a        # Automatically save all files\n  $ claudy save backend -f         # Overwrite existing \"backend\" set\n  $ claudy save project-v2 -a -f   # Auto-save all files and overwrite existing set\n\nHierarchical set names:\n  Use slashes (/) to organize sets hierarchically:\n  $ claudy save node/express       # Configuration for Node.js Express\n  $ claudy save python/django      # Configuration for Python Django\n  $ claudy save test/unit          # Configuration for unit tests\n\nTarget files:\n  Project level:\n    - CLAUDE.md                    # Project instructions\n    - CLAUDE.local.md              # Local settings (if exists)\n    - .claude/**/*.md              # Custom commands\n  \n  User level (selectable by default):\n    - ~/.claude/CLAUDE.md          # Global settings\n    - ~/.claude/commands/**/*.md   # Global commands\n\nSave location:\n  ~/.config/claudy/sets/<set-name>/\n    ├── project/                   # Project level files\n    └── user/                      # User level files",
+    "messages": {
+      "searchingFiles": "Searching for Claude configuration files...",
+      "filesFound": "Found {{count}} file(s)",
+      "noFiles": "No files to save were found",
+      "noFilesSelected": "No files were selected",
+      "selectFiles": "Select files to save",
+      "existsConfirm": "Set \"{{name}}\" already exists. Overwrite?",
+      "savingFiles": "Saving files...",
+      "overwriting": "Overwriting existing set '{{name}}'",
+      "copyingFile": "Copying {{file}}",
+      "success": "Successfully saved set '{{name}}'",
+      "savedFiles": "{{count}} file(s) saved",
+      "files": "file(s)",
+      "cancelled": "Save cancelled",
+      "nextCommand": "You can use this set with the following command:",
+      "savedFilesList": "Saved files:",
+      "setNameDebug": "Set name: {{name}}",
+      "currentDirDebug": "Current directory: {{dir}}",
+      "foundFilesDebug": "Found files: {{files}}",
+      "savePathDebug": "Save path: {{path}}",
+      "deprecatedInteractive": "Note: -i/--interactive option is deprecated. Interactive mode is enabled by default."
+    }
+  },
+  "load": {
+    "description": "Restore a saved configuration to the current directory",
+    "options": {
+      "force": "Skip overwrite confirmation for existing files",
+      "backup": "Create backup of existing files"
+    },
+    "helpText": "\nExamples:\n  $ claudy load frontend           # Load \"frontend\" set\n  $ claudy load node/cli           # Load from hierarchical set name\n  $ claudy load backend -f         # Force overwrite existing files\n  $ cd ~/projects/new-app && claudy load template  # Load in another directory\n\nHierarchical set names:\n  You can load hierarchical sets using slashes (/):\n  $ claudy load node/express       # Configuration for Node.js Express\n  $ claudy load python/django      # Configuration for Python Django\n  $ claudy load test/unit          # Configuration for unit tests\n\nHandling existing files:\n  - Create backup (.bak files)\n  - Overwrite\n  - Cancel\n\nNote:\n  Project level files are loaded to the current directory,\n  User level files are loaded to the home directory.",
+    "messages": {
+      "checkingSet": "Checking if set '{{name}}' exists...",
+      "loadingFiles": "Loading configuration files...",
+      "filesFound": "Found {{count}} file(s) to restore",
+      "existsConfirm": "File '{{file}}' already exists. Overwrite?",
+      "backingUp": "Backing up {{file}} to {{backup}}",
+      "restoringFile": "Restoring {{file}}",
+      "success": "Successfully loaded set '{{name}}'",
+      "restoredFiles": "{{count}} file(s) restored",
+      "rollbackStarted": "Error occurred. Starting rollback...",
+      "rollbackCompleted": "Rollback completed",
+      "setNotFound": "Set '{{name}}' not found",
+      "loadError": "An error occurred while loading the configuration set"
+    }
+  },
+  "list": {
+    "description": "List saved sets",
+    "options": {
+      "verbose": "Show detailed information"
+    },
+    "helpText": "\nExamples:\n  $ claudy list                    # Show all sets\n  $ claudy list -v                 # Show with detailed information\n\nDisplay contents:\n  - Set name (displayed hierarchically)\n  - Scope (P: Project, U: User)\n  - Number of files\n  - Creation date\n\nHierarchical sets:\n  Sets with slashes (/) are displayed in a hierarchical structure:\n  node/\n    express              P+U    5     2024/01/15 10:30\n    cli                  P      3     2024/01/14 15:45\n  python/\n    django               P+U    8     2024/01/10 09:00",
+    "messages": {
+      "noSets": "No saved sets found",
+      "header": "Saved sets:",
+      "files": "files",
+      "lastModified": "Last modified",
+      "setName": "Set Name",
+      "scope": "Scope",
+      "fileCount": "Files",
+      "createdAt": "Created",
+      "total": "Total: {{count}} set(s)",
+      "scopeHint": "Scope: P=Project, U=User",
+      "loadHint": "Hint: Use 'claudy load <set-name>' to load a configuration set",
+      "searching": "Searching for saved sets...",
+      "firstSaveHint": "First save a set using: claudy save <name>"
+    }
+  },
+  "delete": {
+    "description": "Delete a saved set",
+    "options": {
+      "force": "Skip deletion confirmation"
+    },
+    "helpText": "\nExamples:\n  $ claudy delete old-project      # Delete \"old-project\" set (with confirmation)\n  $ claudy delete node/cli         # Delete hierarchical set name\n  $ claudy delete temp -f          # Delete \"temp\" set immediately\n\nHierarchical set names:\n  You can delete hierarchical sets using slashes (/):\n  $ claudy delete node/express     # Delete Node.js Express configuration\n  $ claudy delete python/django    # Delete Python Django configuration\n\nCaution:\n  Deleted sets cannot be recovered",
+    "messages": {
+      "checkingSet": "Checking if set '{{name}}' exists...",
+      "confirmDelete": "Are you sure you want to delete set '{{name}}'? This action cannot be undone.",
+      "deleting": "Deleting set '{{name}}'...",
+      "success": "Successfully deleted set '{{name}}'",
+      "cancelled": "Deletion cancelled",
+      "setNotFound": "Set '{{name}}' not found",
+      "toSeeCurrentSets": "To see current sets:"
+    }
+  },
+  "init": {
+    "description": "Initialize claudy configuration",
+    "helpText": "\nUse this on first run. Creates ~/.config/claudy directory.",
+    "messages": {
+      "success": "claudy initialization completed"
+    }
+  },
+  "help": {
+    "description": "Show help"
+  }
+}

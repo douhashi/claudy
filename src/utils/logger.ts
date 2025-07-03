@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { t } from './i18n.js';
 
 export class Logger {
   private verbose: boolean;
@@ -25,7 +26,7 @@ export class Logger {
 
   debug(message: string): void {
     if (this.verbose) {
-      console.log(chalk.gray('[DEBUG]'), message);
+      console.log(chalk.gray(`[${t('common:logger.debug')}]`), message);
     }
   }
 

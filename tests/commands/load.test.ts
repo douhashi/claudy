@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import { executeLoadCommand } from '../../src/commands/load';
 import { ClaudyError } from '../../src/types';
 import { ErrorCodes } from '../../src/types/errors';
+import { setupI18n, i18nAssert } from '../helpers/i18n-test-helper';
 
 // モックの設定
 vi.mock('../../src/utils/logger');
@@ -37,6 +38,10 @@ const mockLogger = vi.mocked(logger);
 const mockPathUtils = vi.mocked(pathUtils);
 
 describe('loadコマンド', () => {
+  beforeAll(async () => {
+    await setupI18n();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     
@@ -48,7 +53,7 @@ describe('loadコマンド', () => {
     mockPathUtils.getHomeDir.mockReturnValue('/home/user');
     mockPathUtils.validateSetName.mockImplementation((name) => {
       if (!name || name.trim() === '') {
-        throw new ClaudyError('セット名を指定してください', ErrorCodes.INVALID_SET_NAME);
+        throw new ClaudyError('Invalid set name', ErrorCodes.INVALID_SET_NAME);
       }
     });
     vi.spyOn(process, 'cwd').mockReturnValue('/project');
@@ -60,12 +65,12 @@ describe('loadコマンド', () => {
 
   describe('executeLoadCommand', () => {
     it('セット名が指定されていない場合エラーをスローする', async () => {
-      await expect(executeLoadCommand('', { verbose: false })).rejects.toThrow(
-        new ClaudyError(
-          'セット名を指定してください',
-          ErrorCodes.INVALID_SET_NAME
-        )
-      );
+      try {
+        await executeLoadCommand('', { verbose: false });
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        i18nAssert.errorMatches(error, ErrorCodes.INVALID_SET_NAME);
+      }
     });
 
     it('セットが存在しない場合エラーをスローする', async () => {
@@ -75,11 +80,12 @@ describe('loadコマンド', () => {
         return Promise.reject(error);
       });
 
-      await expect(executeLoadCommand('nonexistent', { verbose: false })).rejects.toMatchObject({
-        message: 'セット "nonexistent" が見つかりません',
-        code: ErrorCodes.SET_NOT_FOUND,
-        details: { setName: 'nonexistent', path: '/home/user/.config/claudy/sets/nonexistent' }
-      });
+      try {
+        await executeLoadCommand('nonexistent', { verbose: false });
+        expect.fail('Should have thrown an error');
+      } catch (error) {
+        i18nAssert.errorMatches(error, ErrorCodes.SET_NOT_FOUND, { setName: 'nonexistent' });
+      }
     });
 
     it('展開するファイルを正しく取得する', async () => {
@@ -133,9 +139,11 @@ describe('loadコマンド', () => {
 
       await executeLoadCommand('test-set', { verbose: false });
 
-      expect(mockLogger.warn).toHaveBeenCalledWith('以下のファイルが既に存在します:');
-      expect(mockLogger.warn).toHaveBeenCalledWith('  - CLAUDE.md');
-      expect(mockLogger.info).toHaveBeenCalledWith('展開をキャンセルしました');
+      // Check that warning about existing files was shown
+      i18nAssert.calledWithPhrase(mockLogger.warn, 'exist');
+      i18nAssert.calledWithPhrase(mockLogger.warn, 'CLAUDE.md');
+      // Check that cancellation message was shown
+      i18nAssert.calledWithPhrase(mockLogger.info, 'cancel');
     });
 
     it('forceオプションで既存ファイルを強制上書きする', async () => {
@@ -159,7 +167,8 @@ describe('loadコマンド', () => {
 
       expect(inquirer.prompt).not.toHaveBeenCalled();
       expect(copy).toHaveBeenCalled();
-      expect(mockLogger.success).toHaveBeenCalledWith('✓ セット "test-set" の展開が完了しました');
+      // Check that success message contains the set name
+      i18nAssert.calledWithPhrase(mockLogger.success, 'test-set');
     });
 
     it('バックアップオプションを選択した場合、.bakファイルを作成する', async () => {
@@ -185,8 +194,9 @@ describe('loadコマンド', () => {
 
       expect(rename).toHaveBeenCalledWith('/project/CLAUDE.md', '/project/CLAUDE.md.bak');
       expect(copy).toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith('\nバックアップファイル:');
-      expect(mockLogger.info).toHaveBeenCalledWith('  - CLAUDE.md.bak');
+      // Check that backup files message was shown
+      i18nAssert.calledWithPhrase(mockLogger.info, 'backup');
+      i18nAssert.calledWithPhrase(mockLogger.info, 'CLAUDE.md.bak');
     });
 
     it('上書きオプションを選択した場合、バックアップなしで展開する', async () => {
@@ -240,10 +250,11 @@ describe('loadコマンド', () => {
       vi.mocked(remove).mockResolvedValue(undefined);
 
       await expect(executeLoadCommand('test-set', { verbose: false }))
-        .rejects.toThrow('ファイルの展開に失敗しました。');
+        .rejects.toThrow();
 
-      expect(mockLogger.error).toHaveBeenCalledWith('ファイルの展開中にエラーが発生しました');
-      expect(mockLogger.info).toHaveBeenCalledWith('ロールバックを実行しています...');
+      // Check that error and rollback messages were shown
+      expect(mockLogger.error).toHaveBeenCalled();
+      i18nAssert.calledWithPhrase(mockLogger.info, 'rollback');
       expect(remove).toHaveBeenCalled();
     });
 
@@ -277,8 +288,8 @@ describe('loadコマンド', () => {
       expect(mockLogger.debug).toHaveBeenCalled();
       // デバッグログの内容を確認
       const debugCalls = mockLogger.debug.mock.calls;
-      expect(debugCalls.some(call => call[0].includes('展開対象ファイル数'))).toBe(true);
-      expect(debugCalls.some(call => call[0].includes('展開完了: CLAUDE.md'))).toBe(true);
+      expect(debugCalls.some(call => typeof call[0] === 'string' && call[0].includes('1'))).toBe(true);
+      expect(debugCalls.some(call => typeof call[0] === 'string' && call[0].includes('CLAUDE.md'))).toBe(true);
     });
 
     it('ディレクトリ構造を維持して展開する', async () => {

@@ -5,6 +5,7 @@ import fsExtra from 'fs-extra';
 const fs = fsExtra;
 import inquirer from 'inquirer';
 import { logger } from './logger.js';
+import { t } from './i18n.js';
 import { ClaudyError } from '../types/index.js';
 import { ErrorCodes, wrapError } from '../types/errors.js';
 import { collectReferences, ReferencedFile } from './reference-parser.js';
@@ -51,7 +52,7 @@ export async function findClaudeFiles(
       });
       mainFiles.push(...matches);
     } catch (error) {
-      logger.debug(`パターン "${pattern}" の検索中にエラー: ${error}`);
+      logger.debug(t('common:fileSelection.patternError', { pattern, error }));
     }
   }
   
@@ -122,7 +123,7 @@ export async function findUserClaudeFiles(
     });
     mainFiles.push(...commandFiles.map(f => path.join('.claude', f)));
   } catch (error) {
-    logger.debug(`ユーザーレベルのコマンドファイル検索中にエラー: ${error}`);
+    logger.debug(`Error searching user-level command files: ${error}`);
   }
   
   // 参照ファイルを収集
@@ -255,7 +256,7 @@ export async function selectFilesInteractively(
   
   if (!hasProjectFiles && !hasUserFiles) {
     throw new ClaudyError(
-      'Claude関連ファイルが見つかりませんでした',
+      'No Claude-related files found',
       ErrorCodes.NO_FILES_FOUND,
       { searchDirs: [process.cwd(), userBaseDir] }
     );
@@ -285,7 +286,7 @@ export async function selectFilesInteractively(
     const totalFiles = 
       projectFiles.mainFiles.length + projectFiles.referencedFiles.length +
       userFiles.mainFiles.length + userFiles.referencedFiles.length;
-    logger.info(`✓ ${totalFiles}個のファイルを選択しました`);
+    logger.info(t('common:fileSelection.filesSelected', { count: totalFiles }));
     return results;
   } else if (groupSelection === 'project') {
     // プロジェクトレベルのみ
@@ -295,7 +296,7 @@ export async function selectFilesInteractively(
       baseDir: process.cwd(),
     });
     const totalFiles = projectFiles.mainFiles.length + projectFiles.referencedFiles.length;
-    logger.info(`✓ ${totalFiles}個のプロジェクトレベルファイルを選択しました`);
+    logger.info(t('common:fileSelection.projectFilesSelected', { count: totalFiles }));
     return results;
   } else if (groupSelection === 'user') {
     // ユーザーレベルのみ
@@ -305,7 +306,7 @@ export async function selectFilesInteractively(
       baseDir: userBaseDir,
     });
     const totalFiles = userFiles.mainFiles.length + userFiles.referencedFiles.length;
-    logger.info(`✓ ${totalFiles}個のユーザーレベルファイルを選択しました`);
+    logger.info(t('common:fileSelection.userFilesSelected', { count: totalFiles }));
     return results;
   }
   
@@ -331,7 +332,7 @@ export async function selectFilesInteractively(
       choices.push(new inquirer.Separator(' '));
     }
     
-    choices.push(new inquirer.Separator('--- 参照ファイル (プロジェクト) ---'));
+    choices.push(new inquirer.Separator('--- Referenced files (Project) ---'));
     
     for (const refFile of projectFiles.referencedFiles) {
       const referredFromText = refFile.referredFrom.map(from => 
@@ -352,7 +353,7 @@ export async function selectFilesInteractively(
       choices.push(new inquirer.Separator(' '));
     }
     
-    choices.push(new inquirer.Separator('--- ユーザーレベル ---'));
+    choices.push(new inquirer.Separator('--- User level ---'));
     
     for (const file of userFiles.mainFiles) {
       choices.push({
@@ -369,7 +370,7 @@ export async function selectFilesInteractively(
       choices.push(new inquirer.Separator(' '));
     }
     
-    choices.push(new inquirer.Separator('--- 参照ファイル (ユーザー) ---'));
+    choices.push(new inquirer.Separator('--- Referenced files (User) ---'));
     
     for (const refFile of userFiles.referencedFiles) {
       const referredFromText = refFile.referredFrom.map(from => 
@@ -386,7 +387,7 @@ export async function selectFilesInteractively(
   
   if (choices.length === 0) {
     throw new ClaudyError(
-      'Claude関連ファイルが見つかりませんでした',
+      'No Claude-related files found',
       ErrorCodes.NO_FILES_FOUND,
       { searchDirs: [process.cwd(), userBaseDir] }
     );
@@ -395,13 +396,13 @@ export async function selectFilesInteractively(
   const { selectedFiles } = await inquirer.prompt<{ selectedFiles: string[] }>({
     type: 'checkbox',
     name: 'selectedFiles',
-    message: '保存するファイルを選択してください (スペースで選択/解除):',
+    message: t('commands:save.messages.selectFiles'),
     choices,
     pageSize: 15,
     validate: (input: unknown): boolean | string => {
       const selectedItems = input as string[];
       if (!selectedItems || selectedItems.length === 0) {
-        return '少なくとも1つのファイルを選択してください';
+        return 'Please select at least one file';
       }
       return true;
     },
@@ -452,13 +453,13 @@ export async function selectFilesInteractively(
 export async function performFileSelection(): Promise<FileSelectionResult[]> {
   try {
     // プロジェクトレベルのファイルを検索
-    logger.info('Claude設定ファイルを検索中...');
+    logger.info(t('common:fileSelection.searchingFiles'));
     const projectFiles = await findClaudeFiles(process.cwd(), true);
-    logger.debug(`プロジェクトレベル: ${projectFiles.mainFiles.length}個のメインファイル、${projectFiles.referencedFiles.length}個の参照ファイルが見つかりました`);
+    logger.debug(t('common:fileSelection.projectLevelDebug', { mainCount: projectFiles.mainFiles.length, refCount: projectFiles.referencedFiles.length }));
     
     // ユーザーレベルのファイルを検索
     const { files: userFiles, baseDir: userBaseDir } = await findUserClaudeFiles(true);
-    logger.debug(`ユーザーレベル: ${userFiles.mainFiles.length}個のメインファイル、${userFiles.referencedFiles.length}個の参照ファイルが見つかりました`);
+    logger.debug(t('common:fileSelection.userLevelDebug', { mainCount: userFiles.mainFiles.length, refCount: userFiles.referencedFiles.length }));
     
     // インタラクティブに選択
     return await selectFilesInteractively(projectFiles, userFiles, userBaseDir);

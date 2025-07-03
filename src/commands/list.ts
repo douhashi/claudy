@@ -8,6 +8,7 @@ import { ClaudyError } from '../types/index.js';
 import { getSetsDir } from '../utils/path.js';
 import { ErrorCodes, wrapError } from '../types/errors.js';
 import { handleFileOperation, handleError } from '../utils/errorHandler.js';
+import { t } from '../utils/i18n.js';
 
 interface ListOptions {
   verbose?: boolean;
@@ -148,15 +149,15 @@ function formatDate(date: Date): string {
  */
 function displayTable(sets: SetInfo[]): void {
   if (sets.length === 0) {
-    logger.info('保存されたセットはありません');
+    logger.info(t('commands:list.messages.noSets'));
     return;
   }
 
   // ヘッダー
-  const header = chalk.bold.cyan('セット名') + '\t\t' + 
-                 chalk.bold.cyan('スコープ') + '\t' + 
-                 chalk.bold.cyan('ファイル数') + '\t' + 
-                 chalk.bold.cyan('作成日時');
+  const header = chalk.bold.cyan(t('commands:list.messages.setName')) + '\t\t' + 
+                 chalk.bold.cyan(t('commands:list.messages.scope')) + '\t' + 
+                 chalk.bold.cyan(t('commands:list.messages.fileCount')) + '\t' + 
+                 chalk.bold.cyan(t('commands:list.messages.createdAt'));
   const separator = chalk.gray('-'.repeat(70));
 
   console.log(header);
@@ -191,17 +192,17 @@ function displayTable(sets: SetInfo[]): void {
       // セット名の整形（カテゴリがある場合はインデント）
       const displayName = category ? `  ${set.name.substring(category.length + 1)}` : set.name;
       
-      const row = `${displayName}\t\t${scopeStr}\t\t${set.fileCount}個\t\t${formatDate(set.createdAt)}`;
+      const row = `${displayName}\t\t${scopeStr}\t\t${set.fileCount}\t\t${formatDate(set.createdAt)}`;
       console.log(row);
     }
   }
 
   console.log(separator);
-  console.log(chalk.gray(`合計: ${sets.length}個のセット`));
-  console.log(chalk.dim('\nスコープ: P=プロジェクト, U=ユーザー'));
+  console.log(chalk.gray(t('commands:list.messages.total', { count: sets.length })));
+  console.log(chalk.dim('\n' + t('commands:list.messages.scopeHint')));
   
   if (sets.length > 0) {
-    console.log(chalk.dim('ヒント: claudy load <セット名> で設定を展開できます'));
+    console.log(chalk.dim(t('commands:list.messages.loadHint')));
   }
 }
 
@@ -270,7 +271,7 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
     
     // 新しい構造のセットディレクトリを取得
     const setsDir = getSetsDir();
-    logger.debug(`セットディレクトリ: ${setsDir}`);
+    logger.debug(`Sets directory: ${setsDir}`);
     
     // setsディレクトリの存在確認
     try {
@@ -281,15 +282,15 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
       );
     } catch (error) {
       if (error instanceof ClaudyError && error.code === ErrorCodes.DIR_NOT_FOUND) {
-        logger.info('保存されたセットはありません');
-        logger.info('まず claudy save <name> でセットを保存してください');
+        logger.info(t('commands:list.messages.noSets'));
+        logger.info(t('commands:list.messages.firstSaveHint'));
         return;
       }
       throw error;
     }
     
     // セット一覧を取得（再帰的に探索）
-    logger.info('保存されたセットを検索中...');
+    logger.info(t('commands:list.messages.searching'));
     const sets = await findSetsRecursive(setsDir, setsDir);
     
     // 名前順でソート
@@ -302,7 +303,7 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
     if (error instanceof ClaudyError) {
       throw error;
     }
-    throw wrapError(error, ErrorCodes.LIST_ERROR, 'セット一覧の取得中にエラーが発生しました');
+    throw wrapError(error, ErrorCodes.LIST_ERROR, 'An error occurred while retrieving the set list');
   }
 }
 
@@ -313,24 +314,9 @@ export async function executeListCommand(options: ListOptions): Promise<void> {
 export function registerListCommand(program: Command): void {
   program
     .command('list')
-    .description('保存済みセットの一覧を表示')
-    .addHelpText('after', `
-使用例:
-  $ claudy list                    # 全てのセットを一覧表示
-  $ claudy list -v                 # 詳細情報付きで表示
-
-表示内容:
-  - セット名（階層的に表示）
-  - スコープ（P: プロジェクト, U: ユーザー）
-  - ファイル数
-  - 作成日時
-
-階層的なセット:
-  node/
-    express              P+U    5個    2024/01/15 10:30
-    cli                  P      3個    2024/01/14 15:45
-  python/
-    django               P+U    8個    2024/01/10 09:00`)
+    .description(t('commands:list.description'))
+    .option('-v, --verbose', t('commands:list.options.verbose'))
+    .addHelpText('after', t('commands:list.helpText'))
     .action(async (options: ListOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;

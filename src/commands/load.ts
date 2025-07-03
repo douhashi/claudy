@@ -9,6 +9,7 @@ import { ClaudyError } from '../types/index.js';
 import { glob } from 'glob';
 import { ErrorCodes, ErrorMessages, wrapError } from '../types/errors.js';
 import { handleFileOperation, withRetry, handleError } from '../utils/errorHandler.js';
+import { t } from '../utils/i18n.js';
 
 interface LoadOptions {
   verbose?: boolean;
@@ -22,29 +23,9 @@ interface ConflictAction {
 export function registerLoadCommand(program: Command): void {
   program
     .command('load <name>')
-    .description('保存済みの設定セットを現在のディレクトリに展開')
-    .option('-f, --force', '確認なしで上書き')
-    .addHelpText('after', `
-使用例:
-  $ claudy load frontend           # "frontend"セットを展開
-  $ claudy load node/cli           # 階層的なセット名から展開
-  $ claudy load backend -f         # 既存ファイルを強制上書き
-  $ cd ~/projects/new-app && claudy load template  # 別ディレクトリで展開
-
-階層的なセット名:
-  スラッシュ (/) を使用した階層的なセットを読み込めます:
-  $ claudy load node/express       # Node.js Express用の設定
-  $ claudy load python/django      # Python Django用の設定
-  $ claudy load test/unit          # ユニットテスト用の設定
-
-既存ファイルの処理:
-  - バックアップを作成 (.bakファイル)
-  - 上書き
-  - キャンセル
-
-注意:
-  プロジェクトレベルのファイルは現在のディレクトリに、
-  ユーザーレベルのファイルはホームディレクトリに展開されます。`)
+    .description(t('commands:load.description'))
+    .option('-f, --force', t('commands:load.options.force'))
+    .addHelpText('after', t('commands:load.helpText'))
     .action(async (name: string, options: LoadOptions) => {
       const globalOptions = program.opts();
       options.verbose = globalOptions.verbose || false;
@@ -80,7 +61,7 @@ export async function executeLoadCommand(name: string, options: LoadOptions): Pr
       const systemError = error as NodeJS.ErrnoException;
       if (systemError.code === 'ENOENT') {
         throw new ClaudyError(
-          `セット "${name}" が見つかりません`,
+          t('commands:load.messages.setNotFound', { name }),
           ErrorCodes.SET_NOT_FOUND,
           { setName: name, path: setDir }
         );
@@ -88,17 +69,17 @@ export async function executeLoadCommand(name: string, options: LoadOptions): Pr
       throw wrapError(error, ErrorCodes.FILE_READ_ERROR, undefined, { path: setDir });
     }
 
-    logger.info(`設定セット "${name}" を展開します`);
+    logger.info(t('commands:load.messages.loadingFiles', { name }));
 
     // 展開対象ファイルの取得
     const filesWithScope = await getSetFiles(setDir);
-    logger.debug(`展開対象ファイル数: ${filesWithScope.length}`);
+    logger.debug(`Files to load: ${filesWithScope.length}`);
 
     // 既存ファイルとの衝突チェック
     const conflicts = await checkConflicts(filesWithScope);
     
     if (conflicts.length > 0 && !options.force) {
-      logger.warn('以下のファイルが既に存在します:');
+      logger.warn('The following files already exist:');
       conflicts.forEach(file => {
         logger.warn(`  - ${file}`);
       });
@@ -107,18 +88,18 @@ export async function executeLoadCommand(name: string, options: LoadOptions): Pr
         {
           type: 'list',
           name: 'action',
-          message: '既存ファイルをどのように処理しますか？',
+          message: 'How would you like to handle existing files?',
           choices: [
-            { name: 'バックアップを作成して展開', value: 'backup' },
-            { name: '上書きして展開', value: 'overwrite' },
-            { name: 'キャンセル', value: 'cancel' }
+            { name: 'Create backup and continue', value: 'backup' },
+            { name: 'Overwrite existing files', value: 'overwrite' },
+            { name: 'Cancel', value: 'cancel' }
           ],
           default: 'backup'
         }
       ]);
 
       if (answer.action === 'cancel') {
-        logger.info('展開をキャンセルしました');
+        logger.info('Load cancelled');
         return;
       }
 
@@ -131,28 +112,28 @@ export async function executeLoadCommand(name: string, options: LoadOptions): Pr
     await expandFiles(filesWithScope);
 
     // 結果の表示
-    logger.success(`✓ セット "${name}" の展開が完了しました`);
+    logger.success(`✓ ${t('commands:load.messages.success', { name })}`);
     
     // スコープごとにファイルをグループ化して表示
     const projectFiles = filesWithScope.filter(f => f.scope === 'project');
     const userFiles = filesWithScope.filter(f => f.scope === 'user');
     
     if (projectFiles.length > 0) {
-      logger.info(`\nプロジェクトレベル (現在のディレクトリ):`);
+      logger.info(`\nProject level (current directory):`);
       projectFiles.forEach(({ file }) => {
         logger.info(`  - ${file}`);
       });
     }
     
     if (userFiles.length > 0) {
-      logger.info(`\nユーザーレベル (ホームディレクトリ):`);
+      logger.info(`\nUser level (home directory):`);
       userFiles.forEach(({ file }) => {
         logger.info(`  - ~/${file}`);
       });
     }
     
     if (conflicts.length > 0) {
-      logger.info('\nバックアップファイル:');
+      logger.info('\nBackup files:');
       conflicts.forEach(file => {
         logger.info(`  - ${file}.bak`);
       });
@@ -161,7 +142,7 @@ export async function executeLoadCommand(name: string, options: LoadOptions): Pr
     if (error instanceof ClaudyError) {
       throw error;
     }
-    throw wrapError(error, ErrorCodes.LOAD_ERROR, '設定セットの読み込み中にエラーが発生しました', { setName: name });
+    throw wrapError(error, ErrorCodes.LOAD_ERROR, t('commands:load.messages.loadError'), { setName: name });
   }
 }
 
@@ -276,7 +257,7 @@ async function createBackups(filesWithScope: FileWithScope[], conflictFiles: str
         ErrorCodes.BACKUP_FAILED,
         targetPath
       );
-      logger.debug(`バックアップ作成: ${conflictFile} -> ${conflictFile}.bak`);
+      logger.debug(`Creating backup: ${conflictFile} -> ${conflictFile}.bak`);
     } catch (error) {
       if (error instanceof ClaudyError) {
         const details = { 
@@ -328,17 +309,17 @@ async function expandFiles(filesWithScope: FileWithScope[]): Promise<void> {
       );
       
       expandedFiles.push({ file, targetPath });
-      logger.debug(`展開完了: ${scope === 'user' ? '~/' : ''}${file}`);
+      logger.debug(`Expanded: ${scope === 'user' ? '~/' : ''}${file}`);
     } catch (error) {
       errors.push({ file: `${scope === 'user' ? '~/' : ''}${file}`, error });
-      logger.debug(`展開失敗: ${scope === 'user' ? '~/' : ''}${file} - ${error}`);
+      logger.debug(`Failed to expand: ${scope === 'user' ? '~/' : ''}${file} - ${error}`);
     }
   }
 
   // エラーがある場合はロールバック
   if (errors.length > 0) {
-    logger.error('ファイルの展開中にエラーが発生しました');
-    logger.info('ロールバックを実行しています...');
+    logger.error('Errors occurred while expanding files');
+    logger.info(t('commands:load.messages.rollbackStarted'));
     
     // 展開済みファイルを削除（ロールバック）
     const rollbackErrors: string[] = [];
@@ -349,10 +330,10 @@ async function expandFiles(filesWithScope: FileWithScope[]): Promise<void> {
           ErrorCodes.FILE_DELETE_ERROR,
           targetPath
         );
-        logger.debug(`ロールバック: ${file}`);
+        logger.debug(`Rollback: ${file}`);
       } catch {
         rollbackErrors.push(file);
-        logger.warn(`ロールバック失敗: ${file}`);
+        logger.warn(`Rollback failed: ${file}`);
       }
     }
 

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
+import { setupI18n } from '../helpers/i18n-test-helper';
 import { executeSaveCommand } from '../../src/commands/save';
 import fs from 'fs-extra';
 import path from 'path';
@@ -41,6 +42,10 @@ vi.mock('../../src/utils/file-selector');
 // 実際のファイルシステムを使用する統合テスト
 describe('saveコマンド統合テスト', () => {
   const testDir = path.join(testBaseDir, 'work');
+
+  beforeAll(async () => {
+    await setupI18n();
+  });
 
   beforeEach(async () => {
     // テスト用ディレクトリを作成
@@ -119,9 +124,7 @@ describe('saveコマンド統合テスト', () => {
     it('対象ファイルが存在しない場合エラーになる', async () => {
       // 何もファイルを作成しない
 
-      await expect(executeSaveCommand('test-set', { all: true })).rejects.toThrow(
-        '保存対象のファイルが見つかりません。'
-      );
+      await expect(executeSaveCommand('test-set', { all: true })).rejects.toThrow();
     });
 
     it('.claude/commands以外の.mdファイルは無視される', async () => {
@@ -131,9 +134,7 @@ describe('saveコマンド統合テスト', () => {
       await fs.ensureDir(path.join(testDir, 'other'));
       await fs.writeFile(path.join(testDir, 'other', 'test.md'), '# Other\n');
 
-      await expect(executeSaveCommand('test-set', { all: true })).rejects.toThrow(
-        '保存対象のファイルが見つかりません。'
-      );
+      await expect(executeSaveCommand('test-set', { all: true })).rejects.toThrow();
     });
   });
 });

@@ -13,6 +13,7 @@ import { registerSaveCommand } from './commands/save.js';
 import { registerLoadCommand } from './commands/load.js';
 import { registerListCommand } from './commands/list.js';
 import { registerDeleteCommand } from './commands/delete.js';
+import { initI18n, t } from './utils/i18n.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,36 +31,39 @@ async function getPackageVersion(): Promise<string> {
 
 async function main(): Promise<void> {
   try {
+    // Initialize i18n before anything else
+    await initI18n();
+    
     const version = await getPackageVersion();
     const program = new Command();
 
     program
-      .name('claudy')
-      .description('Claude AI設定ファイル管理ツール\n\nClaude AIの設定ファイル（CLAUDE.md、.claude/commands/**/*.md）を\n名前付きセットとして保存・管理できます。')
+      .name(t('common:app.name'))
+      .description(t('common:app.description'))
       .version(version)
-      .option('-v, --verbose', '詳細なログを表示')
-      .option('-p, --profile <profile>', '使用するプロファイルを指定')
+      .option('-v, --verbose', t('common:logger.verbose'))
+      .option('-p, --profile <profile>', t('common:profile.specify'))
       .addHelpText('after', `
-使用例:
-  $ claudy save myproject        # 現在の設定を"myproject"として保存
-  $ claudy list                  # 保存されたセットの一覧を表示
-  $ claudy load myproject        # "myproject"の設定を現在のディレクトリに展開
-  $ claudy delete myproject      # "myproject"セットを削除
+${t('common:app.usage')}:
+  $ claudy save myproject        # ${t('common:examples.save')}
+  $ claudy list                  # ${t('common:examples.list')}
+  $ claudy load myproject        # ${t('common:examples.load')}
+  $ claudy delete myproject      # ${t('common:examples.delete')}
 
-詳細情報:
+${t('commands:common.moreInfo')}:
   https://github.com/douhashi/claudy`);
 
     program
       .command('init')
-      .description('claudy設定を初期化')
-      .addHelpText('after', '\n初回実行時に使用してください。~/.config/claudy ディレクトリを作成します。')
+      .description(t('commands:init.description'))
+      .addHelpText('after', t('commands:init.helpText'))
       .action(async () => {
         try {
           const options = program.opts();
           logger.setVerbose(options.verbose || false);
 
           await initializeClaudyDir();
-          logger.success('claudyの初期化が完了しました');
+          logger.success(t('commands:init.messages.success'));
         } catch (error) {
           await handleClaudyError(error, ErrorCodes.INTERNAL_ERROR);
         }
@@ -72,7 +76,7 @@ async function main(): Promise<void> {
 
     program
       .command('help')
-      .description('ヘルプを表示')
+      .description(t('commands:help.description'))
       .action(() => {
         program.help();
       });
@@ -91,10 +95,10 @@ function handleError(error: unknown): void {
   if (error instanceof ClaudyError) {
     logger.error(formatErrorMessage(error, true, true));
   } else if (error instanceof Error) {
-    logger.error(`予期しないエラーが発生しました: ${error.message}`);
+    logger.error(t('common:app.unexpectedErrorDetail', { message: error.message }));
     logger.debug(error.stack || '');
   } else {
-    logger.error('予期しないエラーが発生しました');
+    logger.error(t('common:app.unexpectedError'));
     logger.debug(String(error));
   }
   process.exit(1);

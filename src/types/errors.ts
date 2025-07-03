@@ -1,4 +1,5 @@
 import { ClaudyError } from './index.js';
+import { t } from '../utils/i18n.js';
 
 // エラーコードのカテゴリー別定義
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -76,107 +77,107 @@ export const ErrorCodes = {
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
-// エラーメッセージテンプレート
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export const ErrorMessages: Record<ErrorCode, string> = {
-  // 入力検証エラー
-  [ErrorCodes.INVALID_SET_NAME]: 'セット名が無効です。英数字、ハイフン、アンダースコアのみ使用できます。',
-  [ErrorCodes.INVALID_PROFILE_NAME]: 'プロファイル名が無効です。',
-  [ErrorCodes.INVALID_PATH]: '指定されたパスが無効です。',
-  [ErrorCodes.INVALID_ARGUMENT]: '引数が無効です。',
-  [ErrorCodes.RESERVED_NAME]: '予約語は使用できません。',
+// エラーメッセージ取得関数
+export function getErrorMessage(code: ErrorCode): string {
+  const messageMap: Record<ErrorCode, string> = {
+    // 入力検証エラー
+    [ErrorCodes.INVALID_SET_NAME]: t('errors:validation.invalidSetName'),
+    [ErrorCodes.INVALID_PROFILE_NAME]: t('errors:validation.invalidProfileName'),
+    [ErrorCodes.INVALID_PATH]: t('errors:validation.invalidPath'),
+    [ErrorCodes.INVALID_ARGUMENT]: t('errors:validation.invalidArgument'),
+    [ErrorCodes.RESERVED_NAME]: t('errors:validation.reservedName'),
 
-  // リソース存在エラー
-  [ErrorCodes.SET_NOT_FOUND]: '指定されたセットが見つかりません。',
-  [ErrorCodes.PROFILE_NOT_FOUND]: '指定されたプロファイルが見つかりません。',
-  [ErrorCodes.FILE_NOT_FOUND]: 'ファイルが見つかりません。',
-  [ErrorCodes.DIR_NOT_FOUND]: 'ディレクトリが見つかりません。',
-  [ErrorCodes.HOME_DIR_NOT_FOUND]: 'ホームディレクトリが見つかりません。',
-  [ErrorCodes.NO_FILES_FOUND]: '保存対象のファイルが見つかりません。',
-  [ErrorCodes.NO_CONFIG_FILES]: '設定ファイルが見つかりません。',
+    // リソース存在エラー
+    [ErrorCodes.SET_NOT_FOUND]: t('errors:resource.setNotFound'),
+    [ErrorCodes.PROFILE_NOT_FOUND]: t('errors:resource.profileNotFound'),
+    [ErrorCodes.FILE_NOT_FOUND]: t('errors:resource.fileNotFound'),
+    [ErrorCodes.DIR_NOT_FOUND]: t('errors:resource.dirNotFound'),
+    [ErrorCodes.HOME_DIR_NOT_FOUND]: t('errors:resource.homeDirNotFound'),
+    [ErrorCodes.NO_FILES_FOUND]: t('errors:resource.noFilesFound'),
+    [ErrorCodes.NO_CONFIG_FILES]: t('errors:resource.noConfigFiles'),
 
-  // 権限エラー
-  [ErrorCodes.PERMISSION_DENIED]: 'アクセス権限がありません。',
-  [ErrorCodes.READ_PERMISSION_DENIED]: 'ファイルの読み取り権限がありません。',
-  [ErrorCodes.WRITE_PERMISSION_DENIED]: 'ファイルの書き込み権限がありません。',
-  [ErrorCodes.EXECUTE_PERMISSION_DENIED]: 'ファイルの実行権限がありません。',
+    // 権限エラー
+    [ErrorCodes.PERMISSION_DENIED]: t('errors:permission.denied'),
+    [ErrorCodes.READ_PERMISSION_DENIED]: t('errors:permission.readDenied'),
+    [ErrorCodes.WRITE_PERMISSION_DENIED]: t('errors:permission.writeDenied'),
+    [ErrorCodes.EXECUTE_PERMISSION_DENIED]: t('errors:permission.executeDenied'),
 
-  // ファイルシステムエラー
-  [ErrorCodes.DISK_FULL]: 'ディスク容量が不足しています。',
-  [ErrorCodes.FILE_LOCKED]: 'ファイルが他のプロセスによってロックされています。',
-  [ErrorCodes.PATH_TOO_LONG]: 'パスが長すぎます。',
-  [ErrorCodes.INVALID_FILE_NAME]: 'ファイル名が無効です。',
-  [ErrorCodes.SYMLINK_LOOP]: 'シンボリックリンクがループしています。',
+    // ファイルシステムエラー
+    [ErrorCodes.DISK_FULL]: t('errors:filesystem.diskFull'),
+    [ErrorCodes.FILE_LOCKED]: t('errors:filesystem.fileLocked'),
+    [ErrorCodes.PATH_TOO_LONG]: t('errors:filesystem.pathTooLong'),
+    [ErrorCodes.INVALID_FILE_NAME]: t('errors:filesystem.invalidFileName'),
+    [ErrorCodes.SYMLINK_LOOP]: t('errors:filesystem.symlinkLoop'),
 
-  // 操作エラー
-  [ErrorCodes.SAVE_ERROR]: 'セットの保存に失敗しました。',
-  [ErrorCodes.LOAD_ERROR]: 'セットの読み込みに失敗しました。',
-  [ErrorCodes.LIST_ERROR]: 'セット一覧の取得に失敗しました。',
-  [ErrorCodes.DELETE_ERROR]: 'セットの削除に失敗しました。',
-  [ErrorCodes.DELETE_FAILED]: 'セットの削除中にエラーが発生しました。',
-  [ErrorCodes.BACKUP_FAILED]: 'バックアップの作成に失敗しました。',
-  [ErrorCodes.EXPAND_FAILED]: 'ファイルの展開に失敗しました。',
-  [ErrorCodes.ROLLBACK_FAILED]: 'ロールバックに失敗しました。',
-  [ErrorCodes.MIGRATION_ERROR]: '設定の移行に失敗しました。',
+    // 操作エラー
+    [ErrorCodes.SAVE_ERROR]: t('errors:operation.saveError'),
+    [ErrorCodes.LOAD_ERROR]: t('errors:operation.loadError'),
+    [ErrorCodes.LIST_ERROR]: t('errors:operation.listError'),
+    [ErrorCodes.DELETE_ERROR]: t('errors:operation.deleteError'),
+    [ErrorCodes.DELETE_FAILED]: t('errors:operation.deleteFailed'),
+    [ErrorCodes.BACKUP_FAILED]: t('errors:operation.backupFailed'),
+    [ErrorCodes.EXPAND_FAILED]: t('errors:operation.expandFailed'),
+    [ErrorCodes.ROLLBACK_FAILED]: t('errors:operation.rollbackFailed'),
+    [ErrorCodes.MIGRATION_ERROR]: t('errors:operation.migrationError'),
 
-  // ファイル操作エラー
-  [ErrorCodes.FILE_READ_ERROR]: 'ファイルの読み込みに失敗しました。',
-  [ErrorCodes.FILE_WRITE_ERROR]: 'ファイルの書き込みに失敗しました。',
-  [ErrorCodes.FILE_COPY_ERROR]: 'ファイルのコピーに失敗しました。',
-  [ErrorCodes.FILE_DELETE_ERROR]: 'ファイルの削除に失敗しました。',
-  [ErrorCodes.DIR_CREATE_ERROR]: 'ディレクトリの作成に失敗しました。',
-  [ErrorCodes.DIR_DELETE_ERROR]: 'ディレクトリの削除に失敗しました。',
-  [ErrorCodes.DIR_COPY_ERROR]: 'ディレクトリのコピーに失敗しました。',
+    // ファイル操作エラー
+    [ErrorCodes.FILE_READ_ERROR]: t('errors:file.readError'),
+    [ErrorCodes.FILE_WRITE_ERROR]: t('errors:file.writeError'),
+    [ErrorCodes.FILE_COPY_ERROR]: t('errors:file.copyError'),
+    [ErrorCodes.FILE_DELETE_ERROR]: t('errors:file.deleteError'),
+    [ErrorCodes.DIR_CREATE_ERROR]: t('errors:file.dirCreateError'),
+    [ErrorCodes.DIR_DELETE_ERROR]: t('errors:file.dirDeleteError'),
+    [ErrorCodes.DIR_COPY_ERROR]: t('errors:file.dirCopyError'),
 
-  // データ形式エラー
-  [ErrorCodes.JSON_PARSE_ERROR]: 'JSONの解析に失敗しました。',
-  [ErrorCodes.JSON_WRITE_ERROR]: 'JSONの書き込みに失敗しました。',
-  [ErrorCodes.INVALID_FORMAT]: 'データ形式が無効です。',
-  [ErrorCodes.CORRUPTED_DATA]: 'データが破損しています。',
+    // データ形式エラー
+    [ErrorCodes.JSON_PARSE_ERROR]: t('errors:data.jsonParseError'),
+    [ErrorCodes.JSON_WRITE_ERROR]: t('errors:data.jsonWriteError'),
+    [ErrorCodes.INVALID_FORMAT]: t('errors:data.invalidFormat'),
+    [ErrorCodes.CORRUPTED_DATA]: t('errors:data.corrupted'),
 
-  // 設定エラー
-  [ErrorCodes.CONFIG_LOAD_ERROR]: '設定の読み込みに失敗しました。',
-  [ErrorCodes.CONFIG_SAVE_ERROR]: '設定の保存に失敗しました。',
-  [ErrorCodes.CONFIG_INVALID]: '設定が無効です。',
-  [ErrorCodes.PROFILE_EXISTS]: '同名のプロファイルが既に存在します。',
-  [ErrorCodes.DEFAULT_PROFILE_DELETE]: 'デフォルトプロファイルは削除できません。',
+    // 設定エラー
+    [ErrorCodes.CONFIG_LOAD_ERROR]: t('errors:config.loadError'),
+    [ErrorCodes.CONFIG_SAVE_ERROR]: t('errors:config.saveError'),
+    [ErrorCodes.CONFIG_INVALID]: t('errors:config.invalid'),
+    [ErrorCodes.PROFILE_EXISTS]: t('errors:config.profileExists'),
+    [ErrorCodes.DEFAULT_PROFILE_DELETE]: t('errors:config.defaultProfileDelete'),
 
-  // システムエラー
-  [ErrorCodes.UNKNOWN_ERROR]: '不明なエラーが発生しました。',
-  [ErrorCodes.INTERNAL_ERROR]: '内部エラーが発生しました。',
-  [ErrorCodes.NETWORK_ERROR]: 'ネットワークエラーが発生しました。',
+    // システムエラー
+    [ErrorCodes.UNKNOWN_ERROR]: t('errors:system.unknownError'),
+    [ErrorCodes.INTERNAL_ERROR]: t('errors:system.internalError'),
+    [ErrorCodes.NETWORK_ERROR]: t('errors:system.networkError'),
+    
+    // UI/インタラクションエラー
+    [ErrorCodes.FILE_SELECTION_ERROR]: t('errors:ui.fileSelectionError'),
+  };
   
-  // UI/インタラクションエラー
-  [ErrorCodes.FILE_SELECTION_ERROR]: 'ファイル選択中にエラーが発生しました。',
-};
+  return messageMap[code] || t('errors:system.unknownError');
+}
 
-// エラー解決策の提案
+// 後方互換性のため、ErrorMessagesを維持（非推奨）
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export const ErrorSolutions: Partial<Record<ErrorCode, string[]>> = {
-  [ErrorCodes.PERMISSION_DENIED]: [
-    'ファイルまたはディレクトリの権限を確認してください',
-    'sudo を使用して実行してみてください（システムディレクトリの場合）',
-    'ファイルの所有者を確認してください',
-  ],
-  [ErrorCodes.DISK_FULL]: [
-    'ディスクの空き容量を確認してください',
-    '不要なファイルを削除してください',
-    '別のディスクに保存先を変更してください',
-  ],
-  [ErrorCodes.FILE_LOCKED]: [
-    'ファイルを使用している他のプログラムを終了してください',
-    'しばらく待ってから再試行してください',
-    'システムを再起動してください',
-  ],
-  [ErrorCodes.SET_NOT_FOUND]: [
-    'claudy list コマンドで利用可能なセットを確認してください',
-    'セット名のスペルを確認してください',
-  ],
-  [ErrorCodes.NO_FILES_FOUND]: [
-    'CLAUDE.md ファイルが存在することを確認してください',
-    '.claude/commands/ ディレクトリにファイルが存在することを確認してください',
-  ],
-};
+export const ErrorMessages: Record<ErrorCode, string> = new Proxy({} as Record<ErrorCode, string>, {
+  get: (_, prop) => getErrorMessage(prop as ErrorCode)
+});
+
+// エラー解決策取得関数
+export function getErrorSolutions(code: ErrorCode): string[] {
+  const solutionsMap: Record<string, string[]> = {
+    [ErrorCodes.PERMISSION_DENIED]: t('errors:solutions.permissionDenied', { returnObjects: true }) as string[],
+    [ErrorCodes.DISK_FULL]: t('errors:solutions.diskFull', { returnObjects: true }) as string[],
+    [ErrorCodes.FILE_LOCKED]: t('errors:solutions.fileLocked', { returnObjects: true }) as string[],
+    [ErrorCodes.SET_NOT_FOUND]: t('errors:solutions.setNotFound', { returnObjects: true }) as string[],
+    [ErrorCodes.NO_FILES_FOUND]: t('errors:solutions.noFilesFound', { returnObjects: true }) as string[],
+  };
+  
+  return solutionsMap[code] || [];
+}
+
+// 後方互換性のため、ErrorSolutionsを維持（非推奨）
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const ErrorSolutions: Partial<Record<ErrorCode, string[]>> = new Proxy({} as Partial<Record<ErrorCode, string[]>>, {
+  get: (_, prop) => getErrorSolutions(prop as ErrorCode)
+});
 
 // システムエラーコードをClaudyエラーコードにマッピング
 export function mapSystemErrorCode(code: string | undefined): ErrorCode {
@@ -218,13 +219,13 @@ export function formatErrorMessage(
     message = error.message;
 
     if (includeDetails && error.details) {
-      message += `\n\n詳細: ${JSON.stringify(error.details, null, 2)}`;
+      message += `\n\n${t('errors:details')}: ${JSON.stringify(error.details, null, 2)}`;
     }
 
     if (includeSolutions && error.code) {
-      const solutions = ErrorSolutions[error.code as ErrorCode];
+      const solutions = getErrorSolutions(error.code as ErrorCode);
       if (solutions && solutions.length > 0) {
-        message += '\n\n解決策:';
+        message += `\n\n${t('errors:solutionHeader')}:`;
         solutions.forEach((solution, index) => {
           message += `\n  ${index + 1}. ${solution}`;
         });
@@ -249,14 +250,14 @@ export function wrapError(
   }
 
   const systemError = error as NodeJS.ErrnoException;
-  const baseMessage = customMessage || ErrorMessages[code];
+  const baseMessage = customMessage || getErrorMessage(code);
   let message = baseMessage;
 
   // システムエラーの場合、詳細を追加
   if (systemError.code) {
     const mappedCode = mapSystemErrorCode(systemError.code);
     if (mappedCode !== ErrorCodes.UNKNOWN_ERROR) {
-      message = ErrorMessages[mappedCode];
+      message = getErrorMessage(mappedCode);
     }
     
     if (systemError.path) {

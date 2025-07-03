@@ -9,6 +9,7 @@ import {
 } from './path.js';
 import { readJson, writeJson, fileExists, ensureDir, copyFileOrDir } from './file.js';
 import { logger } from './logger.js';
+import { t } from './i18n.js';
 import path from 'path';
 
 const DEFAULT_CONFIG: ClaudyConfig = {
@@ -16,7 +17,7 @@ const DEFAULT_CONFIG: ClaudyConfig = {
   profiles: {
     default: {
       path: '~/.config/claudy/profiles/default',
-      description: 'デフォルトプロファイル',
+      description: 'Default profile',
     },
   },
 };
@@ -41,7 +42,7 @@ export async function initializeClaudyDir(): Promise<void> {
 
   if (!configExists) {
     await writeJson(configPath, DEFAULT_CONFIG);
-    logger.success('claudy設定を初期化しました（XDG Base Directory仕様準拠）');
+    logger.success('claudy configuration initialized (XDG Base Directory compliant)');
   }
 }
 
@@ -58,7 +59,7 @@ export async function checkAndMigrateLegacyConfig(): Promise<boolean> {
   const newExists = await fileExists(newDir);
   
   if (legacyExists && !newExists) {
-    logger.info('旧形式の設定ディレクトリを検出しました。新形式への移行を開始します...');
+    logger.info(t('common:config.legacyDetected'));
     
     try {
       // 新しいディレクトリ構造を作成
@@ -88,12 +89,12 @@ export async function checkAndMigrateLegacyConfig(): Promise<boolean> {
         await copyFileOrDir(legacyProfilesDir, getProfilesDir());
       }
       
-      logger.success('設定の移行が完了しました');
-      logger.info(`旧ディレクトリ (${legacyDir}) は手動で削除してください`);
+      logger.success(t('common:config.migrationSuccess'));
+      logger.info(t('common:config.migrationHint', { dir: legacyDir }));
       return true;
     } catch (error) {
-      logger.error('設定の移行中にエラーが発生しました:');
-      throw new ClaudyError('設定の移行に失敗しました', 'MIGRATION_ERROR', error);
+      logger.error(t('common:config.migrationError'));
+      throw new ClaudyError('Configuration migration failed', 'MIGRATION_ERROR', error);
     }
   }
   
@@ -120,7 +121,7 @@ export async function loadConfig(): Promise<ClaudyConfig> {
   try {
     return await readJson<ClaudyConfig>(configPath);
   } catch (error) {
-    throw new ClaudyError('設定ファイルの読み込みに失敗しました', 'CONFIG_LOAD_ERROR', error);
+    throw new ClaudyError(t('common:config.configLoadError'), 'CONFIG_LOAD_ERROR', error);
   }
 }
 
@@ -133,9 +134,9 @@ export async function saveConfig(config: ClaudyConfig): Promise<void> {
   const configPath = getConfigPath();
   try {
     await writeJson(configPath, config);
-    logger.debug('設定ファイルを保存しました');
+    logger.debug(t('common:config.configSaved'));
   } catch (error) {
-    throw new ClaudyError('設定ファイルの保存に失敗しました', 'CONFIG_SAVE_ERROR', error);
+    throw new ClaudyError(t('common:config.configSaveError'), 'CONFIG_SAVE_ERROR', error);
   }
 }
 
@@ -151,7 +152,7 @@ export async function getProfile(profileName?: string): Promise<string> {
 
   if (!config.profiles[profile]) {
     throw new ClaudyError(
-      `プロファイル '${profile}' が見つかりません`,
+      t('common:config.profileNotFound', { profile }),
       'PROFILE_NOT_FOUND',
       { availableProfiles: Object.keys(config.profiles) },
     );
@@ -171,12 +172,12 @@ export async function addProfile(name: string, path: string, description?: strin
   const config = await loadConfig();
 
   if (config.profiles[name]) {
-    throw new ClaudyError(`プロファイル '${name}' は既に存在します`, 'PROFILE_EXISTS');
+    throw new ClaudyError(t('common:config.profileExists', { name }), 'PROFILE_EXISTS');
   }
 
   config.profiles[name] = { path, description };
   await saveConfig(config);
-  logger.success(`プロファイル '${name}' を追加しました`);
+  logger.success(t('common:config.profileAdded', { name }));
 }
 
 /**
@@ -188,19 +189,19 @@ export async function removeProfile(name: string): Promise<void> {
   const config = await loadConfig();
 
   if (!config.profiles[name]) {
-    throw new ClaudyError(`プロファイル '${name}' が見つかりません`, 'PROFILE_NOT_FOUND');
+    throw new ClaudyError(t('common:config.profileNotFound', { profile: name }), 'PROFILE_NOT_FOUND');
   }
 
   if (name === config.defaultProfile) {
     throw new ClaudyError(
-      'デフォルトプロファイルは削除できません',
+      t('common:config.cannotDeleteDefault'),
       'DEFAULT_PROFILE_DELETE',
     );
   }
 
   delete config.profiles[name];
   await saveConfig(config);
-  logger.success(`プロファイル '${name}' を削除しました`);
+  logger.success(t('common:config.profileRemoved', { name }));
 }
 
 /**
@@ -212,10 +213,10 @@ export async function setDefaultProfile(name: string): Promise<void> {
   const config = await loadConfig();
 
   if (!config.profiles[name]) {
-    throw new ClaudyError(`プロファイル '${name}' が見つかりません`, 'PROFILE_NOT_FOUND');
+    throw new ClaudyError(t('common:config.profileNotFound', { profile: name }), 'PROFILE_NOT_FOUND');
   }
 
   config.defaultProfile = name;
   await saveConfig(config);
-  logger.success(`デフォルトプロファイルを '${name}' に設定しました`);
+  logger.success(t('common:config.defaultProfileSet', { name }));
 }
