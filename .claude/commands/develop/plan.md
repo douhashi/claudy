@@ -10,7 +10,7 @@ description: "引数で指定したIssueの計画を作成します"
 
 ## 前提知識
 
-- ghコマンドの使用方法とワークフロー: @docs/development/gh-instruction.md
+- ghコマンドの使用方法とワークフロー: @docs/development/gh-instructions.md
 - 実行計画の概要とテンプレート: @docs/development/plan-template.md
 - アーキテクチャ: @docs/development/architecture.md
 

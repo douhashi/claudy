@@ -10,9 +10,9 @@ description: "実装"
 
 ## 前提知識
 
-- ghコマンドの使用方法とワークフロー: @docs/development/gh-instruction.md
+- ghコマンドの使用方法とワークフロー: @docs/development/gh-instructions.md
 - 実行計画テンプレート: @docs/development/plan-template.md
-- Git/Githubのブランチ運用とコミットルール: @docs/development/gitinstruction.md
+- Git/Githubのブランチ運用とコミットルール: @docs/development/gitinstructions.md
 - アーキテクチャ: @docs/development/architecture.md
 - コーディング規約: @docs/development/coding-standards.md
 - Viewコンポーネントガイドライン: @docs/development/component-guidelines.md

@@ -13,9 +13,9 @@ Node.jsベースのCLIツールの開発において、指示者の指示に最�
 
 ## 前提知識
 
-- ghコマンドの使用方法とワークフロー: @docs/development/gh-instruction.md
+- ghコマンドの使用方法とワークフロー: @docs/development/gh-instructions.md
+- Git/Githubのブランチ運用とコミットルール: @docs/development/git-instructions.md
 - 実行計画テンプレート: @docs/development/plan-template.md
-- Git/Githubのブランチ運用とコミットルール: @docs/development/git-instruction.md
 - CLIツールアーキテクチャ: @docs/development/architecture.md
 - TypeScript/Node.jsコーディング規約: @docs/development/coding-standards.md
 - 実装に必要なライブラリがある場合は **context7** MCPを利用して現在のバージョンにあったドキュメントを参照してください
