@@ -45,7 +45,8 @@ describe('CLI output does not contain translation keys', () => {
         env: { ...process.env, NODE_ENV: 'test' }
       });
     } catch (error: any) {
-      return error.stdout || error.stderr || '';
+      // Combine both stdout and stderr for error cases
+      return (error.stdout || '') + (error.stderr || '');
     }
   };
 
