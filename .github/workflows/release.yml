@@ -56,7 +56,10 @@ jobs:
         git push origin v${{ env.VERSION }}
     
     - name: Publish to npm
-      run: npm publish
+      run: |
+        echo "Publishing version ${{ env.VERSION }} to npm..."
+        npm whoami || echo "Not authenticated to npm"
+        npm publish --access public
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     
