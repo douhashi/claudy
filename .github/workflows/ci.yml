@@ -104,10 +104,16 @@ jobs:
         CURRENT_VERSION=$(node -p "require('./package.json').version")
         echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
         
-        # Check if this version is already published
-        if npm view claudy@$CURRENT_VERSION version >/dev/null 2>&1; then
-          echo "version_changed=false" >> $GITHUB_OUTPUT
+        # Check if package exists and if this version is already published
+        if npm view claudy version >/dev/null 2>&1; then
+          # Package exists, check if this version is published
+          if npm view claudy@$CURRENT_VERSION version >/dev/null 2>&1; then
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "version_changed=true" >> $GITHUB_OUTPUT
+          fi
         else
+          # Package doesn't exist yet, so we should publish
           echo "version_changed=true" >> $GITHUB_OUTPUT
         fi
     
